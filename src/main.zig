@@ -1,19 +1,13 @@
 const std = @import("std");
+const Lexer = @import("lexer/lexer.zig");
+const Token = Lexer.Token;
+const TokenType = Token.TokenType;
 
 pub fn main() !void {
-    // Prints to stderr (it's a shortcut based on `std.io.getStdErr()`)
-    std.debug.print("All your {s} are belong to us.\n", .{"codebase"});
-
-    // stdout is for the actual output of your application, for example if you
-    // are implementing gzip, then only the compressed bytes should be sent to
-    // stdout, not any debugging messages.
-    const stdout_file = std.io.getStdOut().writer();
-    var bw = std.io.bufferedWriter(stdout_file);
-    const stdout = bw.writer();
-
-    try stdout.print("Run `zig build test` to run the tests.\n", .{});
-
-    try bw.flush(); // don't forget to flush!
+    std.debug.print("{}\n", .{Token{ .type = .{ .raw_byte_string = "name" }, .line = 10, .row = 34, .lexeme = "name" }});
+    std.debug.print("{}\n", .{Token{ .type = .{ .keyword = .as }, .line = 10, .row = 34, .lexeme = "as" }});
+    std.debug.print("{}\n", .{Token{ .type = .{ .character = 'c' }, .line = 10, .row = 34, .lexeme = "c" }});
+    std.debug.print("{}\n", .{Token{ .type = .{ .byte = 9 }, .line = 10, .row = 34, .lexeme = "b9" }});
 }
 
 test "simple test" {
