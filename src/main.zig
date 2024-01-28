@@ -3,11 +3,25 @@ const Lexer = @import("lexer/lexer.zig");
 const Token = Lexer.Token;
 const TokenType = Token.TokenType;
 
+const source_code = @embedFile("./examples/main.tl");
+
 pub fn main() !void {
-    std.debug.print("{}\n", .{Token{ .type = .{ .raw_byte_string = "name" }, .line = 10, .row = 34, .lexeme = "name" }});
-    std.debug.print("{}\n", .{Token{ .type = .{ .keyword = .as }, .line = 10, .row = 34, .lexeme = "as" }});
-    std.debug.print("{}\n", .{Token{ .type = .{ .character = 'c' }, .line = 10, .row = 34, .lexeme = "c" }});
-    std.debug.print("{}\n", .{Token{ .type = .{ .byte = 9 }, .line = 10, .row = 34, .lexeme = "b9" }});
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+
+    var lexer = Lexer.init(arena.allocator(), source_code) catch |err| {
+        std.debug.print("Failed to initialize the lexer: {}", .{err});
+        return;
+    };
+
+    var token = try lexer.scan();
+
+    while (true) {
+        if (token.type == .eof or token.type == .illegal) {
+            break;
+        }
+        std.debug.print("{}\n", .{token});
+        token = try lexer.scan();
+    }
 }
 
 test "simple test" {

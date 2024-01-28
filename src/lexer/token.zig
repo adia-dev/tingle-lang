@@ -1,11 +1,13 @@
 const std = @import("std");
 const Self = @This();
-pub const TokenType = @import("token_type.zig").TokenType;
+const _TokenType = @import("token_type.zig");
+pub const TokenType = _TokenType.TokenType;
+pub const Keyword = _TokenType.Keyword;
 
 type: TokenType,
-line: u32,
-row: u32,
-lexeme: []const u8,
+line: usize,
+row: usize,
+lexeme: []const u8 = "",
 literal: ?[]const u8 = null,
 
 pub fn format(self: Self, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
