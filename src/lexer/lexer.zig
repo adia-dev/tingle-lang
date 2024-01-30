@@ -1,4 +1,4 @@
-pub const Token = @import("token.zig");
+const Token = @import("../token/token.zig");
 const std = @import("std");
 const Self = @This();
 

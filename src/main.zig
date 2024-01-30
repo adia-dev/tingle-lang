@@ -1,6 +1,6 @@
 const std = @import("std");
 const Lexer = @import("lexer/lexer.zig");
-const Token = Lexer.Token;
+const Token = @import("token/token.zig");
 const TokenType = Token.TokenType;
 
 const source_code = @embedFile("./examples/main.tl");
