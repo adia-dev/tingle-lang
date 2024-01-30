@@ -23,6 +23,10 @@ pub fn init(allocator: std.mem.Allocator, source_code: []const u8) !Self {
     return lexer;
 }
 
+pub fn deinit(self: *Self) void {
+    self.keywords.deinit();
+}
+
 fn init_keywords(self: *Self) !void {
     self.keywords = std.StringHashMap(Token.Keyword).init(self.allocator);
 
