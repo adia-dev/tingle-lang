@@ -1,4 +1,5 @@
 const Token = @import("../token/token.zig");
+const TokenToken = Token.TokenType;
 const std = @import("std");
 const Self = @This();
 
@@ -97,6 +98,22 @@ pub fn scan(self: *Self) !Token {
             return token;
         },
         '.' => {
+            if (self.advance_into(".=")) |lexeme| {
+                token.lexeme = lexeme;
+                token.literal = lexeme;
+                token.type = .dotdoteq;
+                return token;
+            } else if (self.advance_into("..")) |lexeme| {
+                token.lexeme = lexeme;
+                token.literal = lexeme;
+                token.type = .dotdotdot;
+                return token;
+            } else if (self.advance_into(".")) |lexeme| {
+                token.lexeme = lexeme;
+                token.literal = lexeme;
+                token.type = .dotdot;
+                return token;
+            }
             token.type = .dot;
         },
         ',' => {
@@ -106,7 +123,13 @@ pub fn scan(self: *Self) !Token {
             token.type = .semi;
         },
         ':' => {
-            token.type = .semi;
+            if (self.advance_into(":")) |lexeme| {
+                token.lexeme = lexeme;
+                token.literal = lexeme;
+                token.type = .pathsep;
+                return token;
+            }
+            token.type = .colon;
         },
         '(' => {
             token.type = .lparen;
@@ -126,41 +149,230 @@ pub fn scan(self: *Self) !Token {
         ']' => {
             token.type = .rbracket;
         },
+        '@' => {
+            token.type = .at;
+        },
         '&' => {
+            if (self.advance_into("&")) |lexeme| {
+                token.lexeme = lexeme;
+                token.literal = lexeme;
+                token.type = .andand;
+                return token;
+            } else if (self.advance_into("=")) |lexeme| {
+                token.lexeme = lexeme;
+                token.literal = lexeme;
+                token.type = .andeq;
+                return token;
+            }
             token.type = .@"and";
         },
         '|' => {
+            if (self.advance_into("|")) |lexeme| {
+                token.lexeme = lexeme;
+                token.literal = lexeme;
+                token.type = .oror;
+                return token;
+            } else if (self.advance_into("=")) |lexeme| {
+                token.lexeme = lexeme;
+                token.literal = lexeme;
+                token.type = .oreq;
+                return token;
+            }
             token.type = .@"or";
         },
         '-' => {
+            if (self.advance_into("-")) |lexeme| {
+                token.lexeme = lexeme;
+                token.literal = lexeme;
+                token.type = .minusminus;
+                return token;
+            } else if (self.advance_into("=")) |lexeme| {
+                token.lexeme = lexeme;
+                token.literal = lexeme;
+                token.type = .minuseq;
+                return token;
+            }
             token.type = .minus;
         },
         '+' => {
+            if (self.advance_into("+")) |lexeme| {
+                token.lexeme = lexeme;
+                token.literal = lexeme;
+                token.type = .plusplus;
+                return token;
+            } else if (self.advance_into("=")) |lexeme| {
+                token.lexeme = lexeme;
+                token.literal = lexeme;
+                token.type = .pluseq;
+                return token;
+            }
             token.type = .plus;
         },
         '*' => {
+            if (self.advance_into("*")) |lexeme| {
+                token.lexeme = lexeme;
+                token.literal = lexeme;
+                token.type = .starstar;
+                return token;
+            } else if (self.advance_into("=")) |lexeme| {
+                token.lexeme = lexeme;
+                token.literal = lexeme;
+                token.type = .stareq;
+                return token;
+            }
             token.type = .star;
         },
         '/' => {
+            if (self.advance_into("/")) |lexeme| {
+                token.lexeme = lexeme;
+                token.literal = lexeme;
+                token.type = .slashslash;
+                return token;
+            } else if (self.advance_into("=")) |lexeme| {
+                token.lexeme = lexeme;
+                token.literal = lexeme;
+                token.type = .slasheq;
+                return token;
+            }
             token.type = .slash;
         },
         '!' => {
+            if (self.advance_into("=")) |lexeme| {
+                token.lexeme = lexeme;
+                token.literal = lexeme;
+                token.type = .ne;
+                return token;
+            }
             token.type = .not;
         },
         '<' => {
+            if (self.advance_into("<=")) |lexeme| {
+                token.lexeme = lexeme;
+                token.literal = lexeme;
+                token.type = .shleq;
+                return token;
+            } else if (self.advance_into("<")) |lexeme| {
+                token.lexeme = lexeme;
+                token.literal = lexeme;
+                token.type = .shl;
+                return token;
+            } else if (self.advance_into("=")) |lexeme| {
+                token.lexeme = lexeme;
+                token.literal = lexeme;
+                token.type = .le;
+                return token;
+            }
             token.type = .lt;
         },
         '>' => {
+            if (self.advance_into(">=")) |lexeme| {
+                token.lexeme = lexeme;
+                token.literal = lexeme;
+                token.type = .shreq;
+                return token;
+            } else if (self.advance_into(">")) |lexeme| {
+                token.lexeme = lexeme;
+                token.literal = lexeme;
+                token.type = .shr;
+                return token;
+            } else if (self.advance_into("=")) |lexeme| {
+                token.lexeme = lexeme;
+                token.literal = lexeme;
+                token.type = .ge;
+                return token;
+            }
             token.type = .gt;
         },
         '=' => {
+            if (self.advance_into("=")) |lexeme| {
+                token.lexeme = lexeme;
+                token.literal = lexeme;
+                token.type = .eqeq;
+                return token;
+            } else if (self.advance_into(">")) |lexeme| {
+                token.lexeme = lexeme;
+                token.literal = lexeme;
+                token.type = .fatarrow;
+                return token;
+            }
             token.type = .eq;
         },
         '\'' => {
             token.type = .quote;
         },
         '"' => {
-            token.type = .doublequote;
+            self.advance();
+            const string = self.scan_string();
+            token.lexeme = "\"";
+            token.literal = string;
+            token.type = .{ .string = string };
+            self.advance();
+            return token;
+        },
+        '#' => {
+            token.type = .pound;
+        },
+        '$' => {
+            token.type = .dollar;
+        },
+        '%' => {
+            if (self.advance_into("=")) |lexeme| {
+                token.lexeme = lexeme;
+                token.literal = lexeme;
+                token.type = .percenteq;
+                return token;
+            }
+            token.type = .percent;
+        },
+        '^' => {
+            if (self.advance_into("=")) |lexeme| {
+                token.lexeme = lexeme;
+                token.literal = lexeme;
+                token.type = .careteq;
+                return token;
+            }
+            token.type = .caret;
+        },
+        '`' => {
+            token.type = .backtick;
+        },
+        '?' => {
+            token.type = .question;
+        },
+        '_' => {
+            token.type = .underscore;
+        },
+        '~' => {
+            if (self.advance_into("r\"")) |lexeme| {
+                const string = self.scan_string();
+                token.lexeme = lexeme;
+                token.literal = string;
+                token.type = .{ .raw_string = string };
+                self.advance();
+                return token;
+            } else if (self.advance_into("b\"")) |lexeme| {
+                const string = self.scan_string();
+                token.lexeme = lexeme;
+                token.literal = string;
+                token.type = .{ .byte_string = string };
+                self.advance();
+                return token;
+            } else if (self.advance_into("b'")) |lexeme| {
+                const byte_char = self.scan_delimiter('\'');
+                token.lexeme = lexeme;
+                token.literal = byte_char;
+                token.type = .{ .byte = byte_char[0] };
+                self.advance();
+                return token;
+            } else if (self.advance_into("rb\"")) |lexeme| {
+                const string = self.scan_string();
+                token.lexeme = lexeme;
+                token.literal = string;
+                token.type = .{ .raw_byte_string = string };
+                self.advance();
+                return token;
+            }
+            token.type = .tilde;
         },
         else => {},
     }
@@ -182,6 +394,31 @@ fn advance(self: *Self) void {
     }
     self.position = self.next_position;
     self.next_position += 1;
+}
+
+pub fn peek(self: *Self) u8 {
+    if (self.next_position >= self.source_code.len) {
+        return 0;
+    } else {
+        return self.source_code[self.next_position];
+    }
+}
+
+pub fn advance_into(self: *Self, expected: []const u8) ?[]const u8 {
+    const position = self.position;
+    const next_position = self.next_position;
+    for (expected, 0..) |c, i| {
+        if (i >= self.source_code.len or c != self.peek()) {
+            self.position = position;
+            self.next_position = next_position;
+            return null;
+        }
+        self.advance();
+    }
+
+    self.advance();
+
+    return self.source_code[position..self.position];
 }
 
 fn scan_identifier(self: *Self) []const u8 {
@@ -212,6 +449,22 @@ fn scan_number(self: *Self) []const u8 {
     }
 
     return self.source_code[position..self.position];
+}
+
+fn scan_string(self: *Self) []const u8 {
+    return self.scan_delimiter('"');
+}
+
+fn scan_delimiter(self: *Self, delimiter: u8) []const u8 {
+    const position = self.position;
+
+    while (!self.is_eof() and self.c != delimiter) : (self.advance()) {}
+
+    return self.source_code[position..self.position];
+}
+
+fn is_eof(self: *Self) bool {
+    return self.c == 0;
 }
 
 fn skip_whitespace(self: *Self) void {

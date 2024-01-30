@@ -89,6 +89,7 @@ pub const TokenType = union(enum) {
     le, // <=	Le
     lt, // <	Lt
     minus, // -	Minus
+    minusminus, // -- MinusMinus
     minuseq, // -=
     ne, // !=	Ne
     not, // !	Not
@@ -98,6 +99,7 @@ pub const TokenType = union(enum) {
     percent, // %
     percenteq, // %=
     plus, // +	Plus
+    plusplus, // ++ PlusPlus
     pluseq, // +=
     pound, // #	Pound
     question, // ?
@@ -112,6 +114,7 @@ pub const TokenType = union(enum) {
     slasheq, // /=
     slashslash, // //	SlashSlash
     star, // *	Star
+    starstar, // **	StarStar
     stareq, // *=
     tilde, // ~	Tilde
     underscore, // _
