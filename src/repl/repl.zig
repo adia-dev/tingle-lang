@@ -52,12 +52,14 @@ pub fn read(self: *Self) !void {
 pub fn eval(self: *Self) !void {
     var lexer = try Lexer.init(self.allocator, self.input);
 
-    var token = try lexer.scan();
     while (true) {
+        const token = lexer.scan() catch |err| {
+            std.debug.print("A syntax error has been found: {}\n", .{err});
+            break;
+        };
         if (token.type == .eof or token.type == .illegal) {
             break;
         }
         std.debug.print("{}\n", .{token});
-        token = try lexer.scan();
     }
 }

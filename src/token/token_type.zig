@@ -65,6 +65,10 @@ pub const TokenType = union(enum) {
     byte_string: []const u8, // ~b""
     raw_byte_string: []const u8, // ~rb""
 
+    // specials
+    inline_comment,
+    multi_line_comment,
+
     // Punctuations
     @"and", // &
     @"or", // |	Or
@@ -114,7 +118,6 @@ pub const TokenType = union(enum) {
     shreq, // >>=
     slash, // /	Slash
     slasheq, // /=
-    slashslash, // //	SlashSlash
     star, // *	Star
     starstar, // **	StarStar
     stareq, // *=

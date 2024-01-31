@@ -1,3 +1,5 @@
+pub const LexerError = @import("lexer_errors.zig").LexerError;
+
 const Token = @import("../token/token.zig");
 const TokenToken = Token.TokenType;
 const std = @import("std");
@@ -37,7 +39,7 @@ fn init_keywords(self: *Self) !void {
     }
 }
 
-pub fn scan(self: *Self) !Token {
+pub fn scan(self: *Self) LexerError!Token {
     self.skip_whitespace();
     var token = Token{ .line = self.line, .row = self.position - self.start_line_position, .type = .illegal };
 
@@ -60,7 +62,7 @@ pub fn scan(self: *Self) !Token {
             return token;
         },
         '0'...'9' => {
-            const number = self.scan_number();
+            const number = try self.scan_number();
             token.type = .{ .number = number };
             token.lexeme = number;
             token.literal = number;
@@ -205,9 +207,16 @@ pub fn scan(self: *Self) !Token {
         },
         '/' => {
             if (self.advance_into("/")) |lexeme| {
+                try self.scan_inline_comment();
                 token.lexeme = lexeme;
                 token.literal = lexeme;
-                token.type = .slashslash;
+                token.type = .inline_comment;
+                return token;
+            } else if (self.advance_into("*")) |lexeme| {
+                try self.scan_multi_line_comment();
+                token.lexeme = lexeme;
+                token.literal = lexeme;
+                token.type = .multi_line_comment;
                 return token;
             } else if (self.advance_into("=")) |lexeme| {
                 token.lexeme = lexeme;
@@ -283,7 +292,7 @@ pub fn scan(self: *Self) !Token {
         },
         '"' => {
             self.advance();
-            const string = self.scan_string();
+            const string = try self.scan_string();
             token.lexeme = "\"";
             token.literal = string;
             token.type = .{ .string = string };
@@ -321,32 +330,43 @@ pub fn scan(self: *Self) !Token {
             token.type = .question;
         },
         '_' => {
-            token.type = .underscore;
+            switch (self.peek()) {
+                'a'...'z', 'A'...'Z' => {
+                    const identifier = self.scan_identifier();
+                    token.type = .{ .identifier = identifier };
+                    token.lexeme = identifier;
+                    token.literal = identifier;
+                    return token;
+                },
+                else => {
+                    token.type = .underscore;
+                },
+            }
         },
         '~' => {
             if (self.advance_into("r\"")) |lexeme| {
-                const string = self.scan_string();
+                const string = try self.scan_string();
                 token.lexeme = lexeme;
                 token.literal = string;
                 token.type = .{ .raw_string = string };
                 self.advance();
                 return token;
             } else if (self.advance_into("b\"")) |lexeme| {
-                const string = self.scan_string();
+                const string = try self.scan_string();
                 token.lexeme = lexeme;
                 token.literal = string;
                 token.type = .{ .byte_string = string };
                 self.advance();
                 return token;
             } else if (self.advance_into("b'")) |lexeme| {
-                const byte_char = self.scan_delimiter('\'');
+                const byte_char = try self.scan_delimiter('\'');
                 token.lexeme = lexeme;
                 token.literal = byte_char;
                 token.type = .{ .byte = byte_char[0] };
                 self.advance();
                 return token;
             } else if (self.advance_into("rb\"")) |lexeme| {
-                const string = self.scan_string();
+                const string = try self.scan_string();
                 token.lexeme = lexeme;
                 token.literal = string;
                 token.type = .{ .raw_byte_string = string };
@@ -361,6 +381,10 @@ pub fn scan(self: *Self) !Token {
     const lexeme = self.source_code[self.position..self.next_position];
     token.lexeme = lexeme;
     token.literal = lexeme;
+
+    if (token.type == .illegal) {
+        return LexerError.IllegalCharacter;
+    }
 
     self.advance();
 
@@ -417,12 +441,50 @@ fn scan_identifier(self: *Self) []const u8 {
     return self.source_code[position..self.position];
 }
 
-fn scan_number(self: *Self) []const u8 {
+fn scan_inline_comment(self: *Self) LexerError!void {
+    while (true) : (self.advance()) {
+        switch (self.c) {
+            '\n', 0 => {
+                break;
+            },
+            else => {},
+        }
+    }
+}
+
+fn scan_multi_line_comment(self: *Self) LexerError!void {
+    while (true) : (self.advance()) {
+        switch (self.c) {
+            0 => {
+                return LexerError.UnmatchedDelimiter;
+            },
+            '*' => {
+                if (self.peek() == '/') {
+                    break;
+                }
+            },
+            else => {},
+        }
+    }
+
+    // skipping the */
+    self.advance();
+    self.advance();
+}
+
+fn scan_number(self: *Self) LexerError![]const u8 {
     const position = self.position;
 
+    var encountered_a_dot = false;
     while (true) {
         switch (self.c) {
             '0'...'9', '.', '_', 'e' => {
+                if (self.c == '.') {
+                    if (encountered_a_dot) {
+                        return LexerError.InvalidNumberFormat;
+                    }
+                    encountered_a_dot = true;
+                }
                 self.advance();
             },
             else => break,
@@ -432,14 +494,18 @@ fn scan_number(self: *Self) []const u8 {
     return self.source_code[position..self.position];
 }
 
-fn scan_string(self: *Self) []const u8 {
-    return self.scan_delimiter('"');
+fn scan_string(self: *Self) LexerError![]const u8 {
+    return try self.scan_delimiter('"');
 }
 
-fn scan_delimiter(self: *Self, delimiter: u8) []const u8 {
+fn scan_delimiter(self: *Self, delimiter: u8) LexerError![]const u8 {
     const position = self.position;
 
-    while (!self.is_eof() and self.c != delimiter) : (self.advance()) {}
+    while (self.c != delimiter) : (self.advance()) {
+        if (self.is_eof()) {
+            return LexerError.UnmatchedDelimiter;
+        }
+    }
 
     return self.source_code[position..self.position];
 }
