@@ -31,40 +31,10 @@ pub fn deinit(self: *Self) void {
 fn init_keywords(self: *Self) !void {
     self.keywords = std.StringHashMap(Token.Keyword).init(self.allocator);
 
-    try self.keywords.put("async", .@"async");
-    try self.keywords.put("await", .@"await");
-    try self.keywords.put("break", .@"break");
-    try self.keywords.put("const", .@"const");
-    try self.keywords.put("continue", .@"continue");
-    try self.keywords.put("else", .@"else");
-    try self.keywords.put("enum", .@"enum");
-    try self.keywords.put("fn", .@"fn");
-    try self.keywords.put("for", .@"for");
-    try self.keywords.put("if", .@"if");
-    try self.keywords.put("pub", .@"pub");
-    try self.keywords.put("return", .@"return");
-    try self.keywords.put("struct", .@"struct");
-    try self.keywords.put("try", .@"try");
-    try self.keywords.put("union", .@"union");
-    try self.keywords.put("while", .@"while");
-    try self.keywords.put("as", .as);
-    try self.keywords.put("do", .do);
-    try self.keywords.put("false", .false);
-    try self.keywords.put("in", .in);
-    try self.keywords.put("let", .let);
-    try self.keywords.put("loop", .loop);
-    try self.keywords.put("match", .match);
-    try self.keywords.put("priv", .priv);
-    try self.keywords.put("self", .self);
-    try self.keywords.put("static", .static);
-    try self.keywords.put("super", .super);
-    try self.keywords.put("trait", .trait);
-    try self.keywords.put("true", .true);
-    try self.keywords.put("type", .type);
-    try self.keywords.put("typeof", .typeof);
-    try self.keywords.put("use", .use);
-    try self.keywords.put("where", .where);
-    try self.keywords.put("yield", .yield);
+    //NOTE: zig metaprogramming is so gooooood
+    inline for (@typeInfo(Token.Keyword).Enum.fields) |f| {
+        try self.keywords.put(f.name, @field(Token.Keyword, f.name));
+    }
 }
 
 pub fn scan(self: *Self) !Token {
@@ -177,7 +147,13 @@ pub fn scan(self: *Self) !Token {
                 token.literal = lexeme;
                 token.type = .oreq;
                 return token;
+            } else if (self.advance_into(">")) |lexeme| {
+                token.lexeme = lexeme;
+                token.literal = lexeme;
+                token.type = .piped;
+                return token;
             }
+
             token.type = .@"or";
         },
         '-' => {
@@ -185,6 +161,11 @@ pub fn scan(self: *Self) !Token {
                 token.lexeme = lexeme;
                 token.literal = lexeme;
                 token.type = .minusminus;
+                return token;
+            } else if (self.advance_into(">")) |lexeme| {
+                token.lexeme = lexeme;
+                token.literal = lexeme;
+                token.type = .rarrow;
                 return token;
             } else if (self.advance_into("=")) |lexeme| {
                 token.lexeme = lexeme;
