@@ -24,6 +24,7 @@ pub const Keyword = enum {
     in,
     let,
     loop,
+    null,
     match,
     priv,
     self,
@@ -101,6 +102,7 @@ pub const TokenType = union(enum) {
     plus, // +	Plus
     plusplus, // ++ PlusPlus
     pluseq, // +=
+    piped, // |>
     pound, // #	Pound
     question, // ?
     quote, // '
