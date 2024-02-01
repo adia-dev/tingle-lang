@@ -106,9 +106,19 @@ test "Lexer - Invalid number format" {
     try testing.expectError(LexerError.InvalidNumberFormat, lexer.scan());
 }
 
-test "Lexer - Invalid escaped sequence" {
+test "Lexer - Invalid escaped sequence on string" {
     const ta = testing.allocator;
     const source_code: []const u8 = "\"This is \\invalid\"";
+
+    var lexer = try Lexer.init(ta, source_code);
+    defer lexer.deinit();
+
+    try testing.expectError(LexerError.InvalidEscapedSequence, lexer.scan());
+}
+
+test "Lexer - Invalid escaped sequence on char" {
+    const ta = testing.allocator;
+    const source_code: []const u8 = "\'\\l\'";
 
     var lexer = try Lexer.init(ta, source_code);
     defer lexer.deinit();

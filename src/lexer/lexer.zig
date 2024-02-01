@@ -258,7 +258,12 @@ pub fn scan(self: *Self) LexerError!Token {
             token.type = .eq;
         },
         '\'' => {
-            token.type = .quote;
+            self.advance();
+            const byte_char = try self.scan_char();
+            token.lexeme = byte_char;
+            token.type = .{ .byte = if (byte_char.len > 0) byte_char[0] else 0 };
+            self.advance();
+            return token;
         },
         '"' => {
             self.advance();
@@ -323,7 +328,7 @@ pub fn scan(self: *Self) LexerError!Token {
                 self.advance();
                 return token;
             } else if (self.advance_into("b'")) |_| {
-                const byte_char = try self.scan_delimiter('\'');
+                const byte_char = try self.scan_char();
                 token.lexeme = byte_char;
                 token.type = .{ .byte = byte_char[0] };
                 self.advance();
@@ -471,6 +476,29 @@ fn scan_string(self: *Self) LexerError![]const u8 {
     return self.source_code[position..self.position];
 }
 
+fn scan_char(self: *Self) LexerError![]const u8 {
+    const position = self.position;
+
+    var i: usize = 0;
+    while (self.c != '\'') : (self.advance()) {
+        if (self.is_eof()) {
+            return LexerError.UnmatchedDelimiter;
+        }
+
+        if (self.c == '\\') {
+            try self.escape_sequence();
+        }
+
+        i += 1;
+    }
+
+    if (i > 1) {
+        return LexerError.InvalidCharSize;
+    }
+
+    return self.source_code[position..self.position];
+}
+
 fn escape_sequence(self: *Self) LexerError!void {
     switch (self.peek()) {
         'n', 't', 'v', 'b', 'r', 'f', 'a', '\\', '\'', '\"', '0' => {
@@ -485,18 +513,6 @@ fn escape_sequence(self: *Self) LexerError!void {
             return LexerError.InvalidEscapedSequence;
         },
     }
-}
-
-fn scan_delimiter(self: *Self, delimiter: u8) LexerError![]const u8 {
-    const position = self.position;
-
-    while (self.c != delimiter) : (self.advance()) {
-        if (self.is_eof()) {
-            return LexerError.UnmatchedDelimiter;
-        }
-    }
-
-    return self.source_code[position..self.position];
 }
 
 fn is_eof(self: *Self) bool {
