@@ -1,8 +1,9 @@
 pub const LexerError = error{
     IllegalCharacter,
-    OverflowingLiteral,
-    UnmatchedDelimiter,
+    InvalidEscapedSequence,
     InvalidNumberFormat,
+    OverflowingLiteral,
     UnexpectedEndOfFile,
+    UnmatchedDelimiter,
     UnsupportedCharacterEncoding,
 };

@@ -106,6 +106,16 @@ test "Lexer - Invalid number format" {
     try testing.expectError(LexerError.InvalidNumberFormat, lexer.scan());
 }
 
+test "Lexer - Invalid escaped sequence" {
+    const ta = testing.allocator;
+    const source_code: []const u8 = "\"This is \\invalid\"";
+
+    var lexer = try Lexer.init(ta, source_code);
+    defer lexer.deinit();
+
+    try testing.expectError(LexerError.InvalidEscapedSequence, lexer.scan());
+}
+
 test "Lexer - Unexpected end of file" {
     const ta = testing.allocator;
     const source_code: []const u8 = "/* Comment without an end";
@@ -186,7 +196,7 @@ test "Lexer - String literal" {
 
     const token = try lexer.scan();
     try testing.expectEqual(@intFromEnum(token.type), @intFromEnum(TokenType.string));
-    try testing.expectEqualStrings(token.literal.?, "Hello, World!");
+    try testing.expectEqualStrings(token.type.string, "Hello, World!");
 }
 
 test "Lexer - Numeric literal" {
@@ -198,11 +208,11 @@ test "Lexer - Numeric literal" {
 
     var token = try lexer.scan();
     try testing.expectEqual(@intFromEnum(token.type), @intFromEnum(TokenType.number));
-    try testing.expectEqualStrings(token.literal.?, "42");
+    try testing.expectEqualStrings(token.type.number, "42");
 
     token = try lexer.scan();
     try testing.expectEqual(@intFromEnum(token.type), @intFromEnum(TokenType.number));
-    try testing.expectEqualStrings(token.literal.?, "3.14");
+    try testing.expectEqualStrings(token.type.number, "3.14");
 }
 
 // src/lexer/lexer_tests.zig
@@ -270,7 +280,7 @@ test "Lexer - String literals" {
 
     for (expected_tokens.items) |expected| {
         const token = try lexer.scan();
-        try testing.expectEqualStrings(token.literal.?, expected.value.string);
+        try testing.expectEqualStrings(token.type.string, expected.value.string);
         try testing.expect(@intFromEnum(token.type) == @intFromEnum(expected.value));
     }
 }

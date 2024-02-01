@@ -57,7 +57,6 @@ pub fn scan(self: *Self) LexerError!Token {
             }
 
             token.lexeme = identifier;
-            token.literal = identifier;
 
             return token;
         },
@@ -65,24 +64,20 @@ pub fn scan(self: *Self) LexerError!Token {
             const number = try self.scan_number();
             token.type = .{ .number = number };
             token.lexeme = number;
-            token.literal = number;
 
             return token;
         },
         '.' => {
             if (self.advance_into(".=")) |lexeme| {
                 token.lexeme = lexeme;
-                token.literal = lexeme;
                 token.type = .dotdoteq;
                 return token;
             } else if (self.advance_into("..")) |lexeme| {
                 token.lexeme = lexeme;
-                token.literal = lexeme;
                 token.type = .dotdotdot;
                 return token;
             } else if (self.advance_into(".")) |lexeme| {
                 token.lexeme = lexeme;
-                token.literal = lexeme;
                 token.type = .dotdot;
                 return token;
             }
@@ -97,7 +92,6 @@ pub fn scan(self: *Self) LexerError!Token {
         ':' => {
             if (self.advance_into(":")) |lexeme| {
                 token.lexeme = lexeme;
-                token.literal = lexeme;
                 token.type = .pathsep;
                 return token;
             }
@@ -127,12 +121,10 @@ pub fn scan(self: *Self) LexerError!Token {
         '&' => {
             if (self.advance_into("&")) |lexeme| {
                 token.lexeme = lexeme;
-                token.literal = lexeme;
                 token.type = .andand;
                 return token;
             } else if (self.advance_into("=")) |lexeme| {
                 token.lexeme = lexeme;
-                token.literal = lexeme;
                 token.type = .andeq;
                 return token;
             }
@@ -141,17 +133,14 @@ pub fn scan(self: *Self) LexerError!Token {
         '|' => {
             if (self.advance_into("|")) |lexeme| {
                 token.lexeme = lexeme;
-                token.literal = lexeme;
                 token.type = .oror;
                 return token;
             } else if (self.advance_into("=")) |lexeme| {
                 token.lexeme = lexeme;
-                token.literal = lexeme;
                 token.type = .oreq;
                 return token;
             } else if (self.advance_into(">")) |lexeme| {
                 token.lexeme = lexeme;
-                token.literal = lexeme;
                 token.type = .piped;
                 return token;
             }
@@ -161,17 +150,14 @@ pub fn scan(self: *Self) LexerError!Token {
         '-' => {
             if (self.advance_into("-")) |lexeme| {
                 token.lexeme = lexeme;
-                token.literal = lexeme;
                 token.type = .minusminus;
                 return token;
             } else if (self.advance_into(">")) |lexeme| {
                 token.lexeme = lexeme;
-                token.literal = lexeme;
                 token.type = .rarrow;
                 return token;
             } else if (self.advance_into("=")) |lexeme| {
                 token.lexeme = lexeme;
-                token.literal = lexeme;
                 token.type = .minuseq;
                 return token;
             }
@@ -180,12 +166,10 @@ pub fn scan(self: *Self) LexerError!Token {
         '+' => {
             if (self.advance_into("+")) |lexeme| {
                 token.lexeme = lexeme;
-                token.literal = lexeme;
                 token.type = .plusplus;
                 return token;
             } else if (self.advance_into("=")) |lexeme| {
                 token.lexeme = lexeme;
-                token.literal = lexeme;
                 token.type = .pluseq;
                 return token;
             }
@@ -194,12 +178,10 @@ pub fn scan(self: *Self) LexerError!Token {
         '*' => {
             if (self.advance_into("*")) |lexeme| {
                 token.lexeme = lexeme;
-                token.literal = lexeme;
                 token.type = .starstar;
                 return token;
             } else if (self.advance_into("=")) |lexeme| {
                 token.lexeme = lexeme;
-                token.literal = lexeme;
                 token.type = .stareq;
                 return token;
             }
@@ -209,18 +191,15 @@ pub fn scan(self: *Self) LexerError!Token {
             if (self.advance_into("/")) |lexeme| {
                 try self.scan_inline_comment();
                 token.lexeme = lexeme;
-                token.literal = lexeme;
                 token.type = .inline_comment;
                 return token;
             } else if (self.advance_into("*")) |lexeme| {
                 try self.scan_multi_line_comment();
                 token.lexeme = lexeme;
-                token.literal = lexeme;
                 token.type = .multi_line_comment;
                 return token;
             } else if (self.advance_into("=")) |lexeme| {
                 token.lexeme = lexeme;
-                token.literal = lexeme;
                 token.type = .slasheq;
                 return token;
             }
@@ -229,7 +208,6 @@ pub fn scan(self: *Self) LexerError!Token {
         '!' => {
             if (self.advance_into("=")) |lexeme| {
                 token.lexeme = lexeme;
-                token.literal = lexeme;
                 token.type = .ne;
                 return token;
             }
@@ -238,17 +216,14 @@ pub fn scan(self: *Self) LexerError!Token {
         '<' => {
             if (self.advance_into("<=")) |lexeme| {
                 token.lexeme = lexeme;
-                token.literal = lexeme;
                 token.type = .shleq;
                 return token;
             } else if (self.advance_into("<")) |lexeme| {
                 token.lexeme = lexeme;
-                token.literal = lexeme;
                 token.type = .shl;
                 return token;
             } else if (self.advance_into("=")) |lexeme| {
                 token.lexeme = lexeme;
-                token.literal = lexeme;
                 token.type = .le;
                 return token;
             }
@@ -257,17 +232,14 @@ pub fn scan(self: *Self) LexerError!Token {
         '>' => {
             if (self.advance_into(">=")) |lexeme| {
                 token.lexeme = lexeme;
-                token.literal = lexeme;
                 token.type = .shreq;
                 return token;
             } else if (self.advance_into(">")) |lexeme| {
                 token.lexeme = lexeme;
-                token.literal = lexeme;
                 token.type = .shr;
                 return token;
             } else if (self.advance_into("=")) |lexeme| {
                 token.lexeme = lexeme;
-                token.literal = lexeme;
                 token.type = .ge;
                 return token;
             }
@@ -276,12 +248,10 @@ pub fn scan(self: *Self) LexerError!Token {
         '=' => {
             if (self.advance_into("=")) |lexeme| {
                 token.lexeme = lexeme;
-                token.literal = lexeme;
                 token.type = .eqeq;
                 return token;
             } else if (self.advance_into(">")) |lexeme| {
                 token.lexeme = lexeme;
-                token.literal = lexeme;
                 token.type = .fatarrow;
                 return token;
             }
@@ -293,8 +263,7 @@ pub fn scan(self: *Self) LexerError!Token {
         '"' => {
             self.advance();
             const string = try self.scan_string();
-            token.lexeme = "\"";
-            token.literal = string;
+            token.lexeme = string;
             token.type = .{ .string = string };
             self.advance();
             return token;
@@ -308,7 +277,6 @@ pub fn scan(self: *Self) LexerError!Token {
         '%' => {
             if (self.advance_into("=")) |lexeme| {
                 token.lexeme = lexeme;
-                token.literal = lexeme;
                 token.type = .percenteq;
                 return token;
             }
@@ -317,7 +285,6 @@ pub fn scan(self: *Self) LexerError!Token {
         '^' => {
             if (self.advance_into("=")) |lexeme| {
                 token.lexeme = lexeme;
-                token.literal = lexeme;
                 token.type = .careteq;
                 return token;
             }
@@ -335,7 +302,6 @@ pub fn scan(self: *Self) LexerError!Token {
                     const identifier = self.scan_identifier();
                     token.type = .{ .identifier = identifier };
                     token.lexeme = identifier;
-                    token.literal = identifier;
                     return token;
                 },
                 else => {
@@ -344,31 +310,27 @@ pub fn scan(self: *Self) LexerError!Token {
             }
         },
         '~' => {
-            if (self.advance_into("r\"")) |lexeme| {
+            if (self.advance_into("r\"")) |_| {
                 const string = try self.scan_string();
-                token.lexeme = lexeme;
-                token.literal = string;
+                token.lexeme = string;
                 token.type = .{ .raw_string = string };
                 self.advance();
                 return token;
-            } else if (self.advance_into("b\"")) |lexeme| {
+            } else if (self.advance_into("b\"")) |_| {
                 const string = try self.scan_string();
-                token.lexeme = lexeme;
-                token.literal = string;
+                token.lexeme = string;
                 token.type = .{ .byte_string = string };
                 self.advance();
                 return token;
-            } else if (self.advance_into("b'")) |lexeme| {
+            } else if (self.advance_into("b'")) |_| {
                 const byte_char = try self.scan_delimiter('\'');
-                token.lexeme = lexeme;
-                token.literal = byte_char;
+                token.lexeme = byte_char;
                 token.type = .{ .byte = byte_char[0] };
                 self.advance();
                 return token;
-            } else if (self.advance_into("rb\"")) |lexeme| {
+            } else if (self.advance_into("rb\"")) |_| {
                 const string = try self.scan_string();
-                token.lexeme = lexeme;
-                token.literal = string;
+                token.lexeme = string;
                 token.type = .{ .raw_byte_string = string };
                 self.advance();
                 return token;
@@ -380,7 +342,6 @@ pub fn scan(self: *Self) LexerError!Token {
 
     const lexeme = self.source_code[self.position..self.next_position];
     token.lexeme = lexeme;
-    token.literal = lexeme;
 
     if (token.type == .illegal) {
         return LexerError.IllegalCharacter;
@@ -495,7 +456,35 @@ fn scan_number(self: *Self) LexerError![]const u8 {
 }
 
 fn scan_string(self: *Self) LexerError![]const u8 {
-    return try self.scan_delimiter('"');
+    const position = self.position;
+
+    while (self.c != '"') : (self.advance()) {
+        if (self.is_eof()) {
+            return LexerError.UnmatchedDelimiter;
+        }
+
+        if (self.c == '\\') {
+            try self.escape_sequence();
+        }
+    }
+
+    return self.source_code[position..self.position];
+}
+
+fn escape_sequence(self: *Self) LexerError!void {
+    switch (self.peek()) {
+        'n', 't', 'v', 'b', 'r', 'f', 'a', '\\', '\'', '\"', '0' => {
+            self.advance();
+        },
+        // TODO: check that the number after the escaped `x`
+        // is an actual hex number
+        'x' => {
+            self.advance();
+        },
+        else => {
+            return LexerError.InvalidEscapedSequence;
+        },
+    }
 }
 
 fn scan_delimiter(self: *Self, delimiter: u8) LexerError![]const u8 {
