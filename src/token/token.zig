@@ -5,8 +5,8 @@ pub const TokenType = _TokenType.TokenType;
 pub const Keyword = _TokenType.Keyword;
 
 type: TokenType,
-line: usize,
-row: usize,
+line: usize = 1,
+row: usize = 1,
 lexeme: []const u8 = "",
 
 pub fn format(self: Self, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
