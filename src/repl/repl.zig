@@ -53,8 +53,10 @@ pub fn eval(self: *Self) !void {
     var lexer = try Lexer.init(self.allocator, self.input);
 
     while (true) {
-        const token = lexer.scan() catch |err| {
-            std.debug.print("A syntax error has been found: {}\n", .{err});
+        const token = lexer.scan() catch {
+            for (lexer.errors.items) |e| {
+                std.debug.print("{}\n", .{e});
+            }
             break;
         };
         if (token.type == .eof or token.type == .illegal) {
