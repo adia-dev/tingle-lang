@@ -2,6 +2,7 @@ const std = @import("std");
 const Self = @This();
 const _TokenType = @import("token_type.zig");
 pub const TokenType = _TokenType.TokenType;
+pub const TokenTypeTag = _TokenType.TokenTypeTag;
 pub const Keyword = _TokenType.Keyword;
 
 type: TokenType,

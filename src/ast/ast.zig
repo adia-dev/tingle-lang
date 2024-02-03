@@ -10,8 +10,9 @@ const TokenType = Token.TokenType;
 const Keyword = Token.Keyword;
 
 pub const Expressions = @import("expressions/expressions.zig");
+pub const Statements = @import("statements/statements.zig");
 const Expression = Expressions.Expression;
-const Statement = @import("statements/statement.zig").Statement;
+const Statement = Statements.Statement;
 
 pub const Node = union(enum) {
     expression: Expression,

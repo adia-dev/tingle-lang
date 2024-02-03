@@ -45,7 +45,7 @@ pub const Keyword = enum {
     }
 };
 
-pub const TokenType = union(enum) {
+pub const TokenType = union(TokenTypeTag) {
     // End of File
     eof,
     // Illegal, most likely a non printable character
@@ -143,4 +143,100 @@ pub const TokenType = union(enum) {
             else => |token_type| try std.fmt.format(writer, "{s}", .{@tagName(token_type)}),
         }
     }
+
+    pub fn is(self: TokenType, tag: TokenTypeTag) bool {
+        return @as(TokenTypeTag, self) == tag;
+    }
+
+    pub fn is_deep(self: TokenType, t: TokenType) bool {
+        return self == t;
+    }
+};
+
+pub const TokenTypeTag = enum {
+    // End of File
+    eof,
+    // Illegal, most likely a non printable character
+    illegal,
+    // Keyword
+    keyword, // e.g: for, while, if, defer
+
+    // Identifier
+    identifier, // e.g: name, age, users
+
+    // Literals
+    character, // ''
+    number, // ""
+    string, // ""
+    raw_string, // ~r""
+    byte, // b{value} (integer coercible)
+    byte_string, // ~b""
+    raw_byte_string, // ~rb""
+
+    // specials
+    inline_comment,
+    multi_line_comment,
+
+    // Punctuations
+    @"and", // &
+    @"or", // |	Or
+    andand, // &&
+    andeq, // &=
+    at, // @	At
+    backtick, // `
+    caret, // ^	Caret
+    careteq, // ^=
+    colon, // :	Colon
+    comma, // ,	Comma
+    dollar, // $
+    dot, // .	Dot
+    dotdot, // ..
+    dotdotdot, // ...
+    dotdoteq, // ..=
+    doublequote, // "
+    eq, // =	Eq
+    eqeq, // ==	EqEq
+    fatarrow, // =>
+    ge, // >=	Ge
+    gt, // >	Gt
+    le, // <=	Le
+    lt, // <	Lt
+    minus, // -	Minus
+    minusminus, // -- MinusMinus
+    minuseq, // -=
+    ne, // !=	Ne
+    not, // !	Not
+    oreq, // |=	OrEq
+    oror, // ||	OrOr
+    pathsep, // ::
+    percent, // %
+    percenteq, // %=
+    plus, // +	Plus
+    plusplus, // ++ PlusPlus
+    pluseq, // +=
+    piped, // |>
+    pound, // #	Pound
+    question, // ?
+    quote, // '
+    rarrow, // ->
+    semi, // ;	Semi
+    shl, // <<	Shl
+    shleq, // <<=
+    shr, // >>	Shr
+    shreq, // >>=
+    slash, // /	Slash
+    slasheq, // /=
+    star, // *	Star
+    starstar, // **	StarStar
+    stareq, // *=
+    tilde, // ~	Tilde
+    underscore, // _
+
+    // Delimiters
+    lparen, // ( 	Parentheses
+    rparen, // )	Parentheses
+    lbracket, // [ 	brackets
+    rbracket, // ]	brackets
+    lbrace, // { 	braces
+    rbrace, // }	braces
 };
