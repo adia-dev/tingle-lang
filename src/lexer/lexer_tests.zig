@@ -83,7 +83,9 @@ test "Lexer - Illegal character" {
     var lexer = try Lexer.init(ta, source_code);
     defer lexer.deinit();
 
-    try testing.expectError(LexerError.IllegalCharacter, lexer.scan());
+    try testing.expectError(error.IllegalCharacter, lexer.scan());
+    try testing.expectEqual(1, lexer.errors.items.len);
+    try testing.expectError(error.IllegalCharacter, lexer.errors.items[0].err());
 }
 
 test "Lexer - Unmatched delimiters" {
@@ -93,7 +95,10 @@ test "Lexer - Unmatched delimiters" {
     var lexer = try Lexer.init(ta, source_code);
     defer lexer.deinit();
 
-    try testing.expectError(LexerError.UnmatchedDelimiter, lexer.scan());
+    try testing.expectError(error.UnmatchedDelimiter, lexer.scan());
+    try testing.expectEqual(1, lexer.errors.items.len);
+    try testing.expectError(error.UnmatchedDelimiter, lexer.errors.items[0].err());
+    try testing.expectEqualStrings("\"", lexer.errors.items[0].trace.unmatched_delimiter.expected_delimiter);
 }
 
 test "Lexer - Invalid number format" {
@@ -103,7 +108,9 @@ test "Lexer - Invalid number format" {
     var lexer = try Lexer.init(ta, source_code);
     defer lexer.deinit();
 
-    try testing.expectError(LexerError.InvalidNumberFormat, lexer.scan());
+    try testing.expectError(error.InvalidNumberFormat, lexer.scan());
+    try testing.expectEqual(1, lexer.errors.items.len);
+    try testing.expectError(error.InvalidNumberFormat, lexer.errors.items[0].err());
 }
 
 test "Lexer - Invalid escaped sequence on string" {
@@ -113,7 +120,10 @@ test "Lexer - Invalid escaped sequence on string" {
     var lexer = try Lexer.init(ta, source_code);
     defer lexer.deinit();
 
-    try testing.expectError(LexerError.InvalidEscapedSequence, lexer.scan());
+    try testing.expectError(error.InvalidEscapedSequence, lexer.scan());
+    try testing.expectEqual(1, lexer.errors.items.len);
+    try testing.expectError(error.InvalidEscapedSequence, lexer.errors.items[0].err());
+    try testing.expectEqualStrings("\\i", lexer.errors.items[0].trace.invalid_escaped_sequence.sequence);
 }
 
 test "Lexer - Invalid escaped sequence on char" {
@@ -123,7 +133,10 @@ test "Lexer - Invalid escaped sequence on char" {
     var lexer = try Lexer.init(ta, source_code);
     defer lexer.deinit();
 
-    try testing.expectError(LexerError.InvalidEscapedSequence, lexer.scan());
+    try testing.expectError(error.InvalidEscapedSequence, lexer.scan());
+    try testing.expectEqual(1, lexer.errors.items.len);
+    try testing.expectError(error.InvalidEscapedSequence, lexer.errors.items[0].err());
+    try testing.expectEqualStrings("\\l", lexer.errors.items[0].trace.invalid_escaped_sequence.sequence);
 }
 
 test "Lexer - Unexpected end of file" {
@@ -133,9 +146,23 @@ test "Lexer - Unexpected end of file" {
     var lexer = try Lexer.init(ta, source_code);
     defer lexer.deinit();
 
-    try testing.expectError(LexerError.UnmatchedDelimiter, lexer.scan());
+    try testing.expectError(error.UnmatchedDelimiter, lexer.scan());
+    try testing.expectEqual(1, lexer.errors.items.len);
+    try testing.expectError(error.UnmatchedDelimiter, lexer.errors.items[0].err());
+    try testing.expectEqualStrings("*/", lexer.errors.items[0].trace.unmatched_delimiter.expected_delimiter);
 }
 
+test "Lexer - Invalid character size" {
+    const ta = testing.allocator;
+    const source_code: []const u8 = "'ab'";
+
+    var lexer = try Lexer.init(ta, source_code);
+    defer lexer.deinit();
+
+    try testing.expectError(error.InvalidCharSize, lexer.scan());
+    try testing.expectEqual(1, lexer.errors.items.len);
+    try testing.expectError(error.InvalidCharSize, lexer.errors.items[0].err());
+}
 test "Lexer - Unsupported character encoding" {
     const ta = testing.allocator;
     const source_code: []const u8 = "这是中文";
@@ -143,9 +170,11 @@ test "Lexer - Unsupported character encoding" {
     var lexer = try Lexer.init(ta, source_code);
     defer lexer.deinit();
 
-    // TODO: the error should be, LexerError.UnsupportedCharacterEncoding, but it
+    // TODO: the error should be, error.UnsupportedCharacterEncoding, but it
     // is currently not implemented
-    try testing.expectError(LexerError.IllegalCharacter, lexer.scan());
+    try testing.expectError(error.IllegalCharacter, lexer.scan());
+    try testing.expectEqual(1, lexer.errors.items.len);
+    try testing.expectError(error.IllegalCharacter, lexer.errors.items[0].err());
 }
 
 test "Lexer - Empty input" {
@@ -156,6 +185,7 @@ test "Lexer - Empty input" {
     defer lexer.deinit();
 
     const token = try lexer.scan();
+    try testing.expectEqual(0, lexer.errors.items.len);
     try testing.expectEqual(TokenType.eof, token.type);
 }
 

@@ -1,1 +1,3 @@
-pub const ParserError = error{UnexpectedToken};
+pub const ParserError = error{
+    UnexpectedToken,
+};

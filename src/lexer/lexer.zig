@@ -10,14 +10,17 @@ position: usize = 0,
 next_position: usize = 0,
 start_line_position: usize = 0,
 c: u8 = 0,
+current_token: ?*Token = null,
+
 allocator: std.mem.Allocator,
 source_code: []const u8,
+errors: std.ArrayList(LexerError),
 
 // TODO: change this to be statically initialized
 keywords: std.StringHashMap(Token.Keyword) = undefined,
 
 pub fn init(allocator: std.mem.Allocator, source_code: []const u8) !Self {
-    var lexer = Self{ .allocator = allocator, .source_code = source_code };
+    var lexer = Self{ .allocator = allocator, .source_code = source_code, .errors = std.ArrayList(LexerError).init(allocator) };
 
     try lexer.init_keywords();
 
@@ -28,6 +31,7 @@ pub fn init(allocator: std.mem.Allocator, source_code: []const u8) !Self {
 
 pub fn deinit(self: *Self) void {
     self.keywords.deinit();
+    self.errors.deinit();
 }
 
 fn init_keywords(self: *Self) !void {
@@ -39,9 +43,11 @@ fn init_keywords(self: *Self) !void {
     }
 }
 
-pub fn scan(self: *Self) LexerError!Token {
+pub fn scan(self: *Self) !Token {
     self.skip_whitespace();
-    var token = Token{ .line = self.line, .row = self.position - self.start_line_position, .type = .illegal };
+    var token = Token{ .line = self.line, .col = self.position - self.start_line_position + 1, .type = .illegal };
+
+    self.current_token = &token;
 
     switch (self.c) {
         0 => {
@@ -349,10 +355,13 @@ pub fn scan(self: *Self) LexerError!Token {
     token.lexeme = lexeme;
 
     if (token.type == .illegal) {
-        return LexerError.IllegalCharacter;
+        try self.errors.append(.{ .@"error" = error.IllegalCharacter, .lexer = self, .trace = .{ .illegal_character = .{ .char = self.source_code[self.position] } } });
+        return error.IllegalCharacter;
     }
 
     self.advance();
+
+    self.current_token = null;
 
     return token;
 }
@@ -407,7 +416,7 @@ fn scan_identifier(self: *Self) []const u8 {
     return self.source_code[position..self.position];
 }
 
-fn scan_inline_comment(self: *Self) LexerError!void {
+fn scan_inline_comment(self: *Self) !void {
     while (true) : (self.advance()) {
         switch (self.c) {
             '\n', 0 => {
@@ -418,11 +427,12 @@ fn scan_inline_comment(self: *Self) LexerError!void {
     }
 }
 
-fn scan_multi_line_comment(self: *Self) LexerError!void {
+fn scan_multi_line_comment(self: *Self) !void {
     while (true) : (self.advance()) {
         switch (self.c) {
             0 => {
-                return LexerError.UnmatchedDelimiter;
+                try self.errors.append(.{ .@"error" = error.UnmatchedDelimiter, .lexer = self, .trace = .{ .unmatched_delimiter = .{ .expected_delimiter = "*/" } } });
+                return error.UnmatchedDelimiter;
             },
             '*' => {
                 if (self.peek() == '/') {
@@ -438,18 +448,23 @@ fn scan_multi_line_comment(self: *Self) LexerError!void {
     self.advance();
 }
 
-fn scan_number(self: *Self) LexerError![]const u8 {
+fn scan_number(self: *Self) ![]const u8 {
     const position = self.position;
 
-    var encountered_a_dot = false;
+    var encountered_dots: usize = 0;
     while (true) {
         switch (self.c) {
             '0'...'9', '.', '_', 'e' => {
                 if (self.c == '.') {
-                    if (encountered_a_dot) {
-                        return LexerError.InvalidNumberFormat;
+                    switch (self.peek()) {
+                        'a'...'z', 'A'...'Z', '_' => {
+                            // early returns, could be a function call
+                            // e.g: 3.14.floor();
+                            return self.source_code[position..self.position];
+                        },
+                        else => {},
                     }
-                    encountered_a_dot = true;
+                    encountered_dots += 1;
                 }
                 self.advance();
             },
@@ -457,15 +472,21 @@ fn scan_number(self: *Self) LexerError![]const u8 {
         }
     }
 
+    if (encountered_dots > 1) {
+        try self.errors.append(.{ .@"error" = error.InvalidNumberFormat, .lexer = self, .trace = .{ .invalid_number_format = .{ .number = self.source_code[position..self.position] } } });
+        return error.InvalidNumberFormat;
+    }
+
     return self.source_code[position..self.position];
 }
 
-fn scan_string(self: *Self) LexerError![]const u8 {
+fn scan_string(self: *Self) ![]const u8 {
     const position = self.position;
 
     while (self.c != '"') : (self.advance()) {
         if (self.is_eof()) {
-            return LexerError.UnmatchedDelimiter;
+            try self.errors.append(.{ .@"error" = error.UnmatchedDelimiter, .lexer = self, .trace = .{ .unmatched_delimiter = .{ .expected_delimiter = "\"" } } });
+            return error.UnmatchedDelimiter;
         }
 
         if (self.c == '\\') {
@@ -476,13 +497,14 @@ fn scan_string(self: *Self) LexerError![]const u8 {
     return self.source_code[position..self.position];
 }
 
-fn scan_char(self: *Self) LexerError![]const u8 {
+fn scan_char(self: *Self) ![]const u8 {
     const position = self.position;
 
     var i: usize = 0;
     while (self.c != '\'') : (self.advance()) {
         if (self.is_eof()) {
-            return LexerError.UnmatchedDelimiter;
+            try self.errors.append(.{ .@"error" = error.UnmatchedDelimiter, .lexer = self, .trace = .{ .unmatched_delimiter = .{ .expected_delimiter = "'" } } });
+            return error.UnmatchedDelimiter;
         }
 
         if (self.c == '\\') {
@@ -493,13 +515,14 @@ fn scan_char(self: *Self) LexerError![]const u8 {
     }
 
     if (i > 1) {
-        return LexerError.InvalidCharSize;
+        try self.errors.append(.{ .@"error" = error.InvalidCharSize, .lexer = self, .trace = .{ .invalid_char_size = .{ .char = self.source_code[position..self.position] } } });
+        return error.InvalidCharSize;
     }
 
     return self.source_code[position..self.position];
 }
 
-fn escape_sequence(self: *Self) LexerError!void {
+fn escape_sequence(self: *Self) !void {
     switch (self.peek()) {
         'n', 't', 'v', 'b', 'r', 'f', 'a', '\\', '\'', '\"', '0' => {
             self.advance();
@@ -510,7 +533,8 @@ fn escape_sequence(self: *Self) LexerError!void {
             self.advance();
         },
         else => {
-            return LexerError.InvalidEscapedSequence;
+            try self.errors.append(.{ .@"error" = error.InvalidEscapedSequence, .lexer = self, .trace = .{ .invalid_escaped_sequence = .{ .sequence = self.source_code[self.position..(self.next_position + 1)] } } });
+            return error.InvalidEscapedSequence;
         },
     }
 }
