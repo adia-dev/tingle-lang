@@ -5,14 +5,15 @@ const Lexer = @import("../lexer/lexer.zig");
 const TokenType = Token.TokenType;
 const TokenTypeTag = Token.TokenTypeTag;
 const ParserError = @import("parser_error.zig").ParserError;
-const Expressions = ast.Expressions;
 
+const Expressions = ast.Expressions;
 const Identifier = Expressions.Identifier;
 
 const Statements = ast.Statements;
 const Statement = Statements.Statement;
 const Program = Statements.Program;
 const LetStatement = Statements.LetStatement;
+const ReturnStatement = Statements.ReturnStatement;
 
 const Self = @This();
 
@@ -52,6 +53,7 @@ fn parse_statement(self: *Self) !?Statement {
         .keyword => |kw| {
             return switch (kw) {
                 .let => try self.parse_let_statement(),
+                .@"return" => try self.parse_return_statement(),
                 else => return null,
             };
         },
@@ -77,9 +79,35 @@ fn parse_let_statement(self: *Self) !Statement {
     }
     try self.advance();
 
-    while (!self.current_token_is(.semi)) : (try self.advance()) {}
+    while (!self.current_token_is(.semi)) : (try self.advance()) {
+        if (self.current_token_is(.eof)) {
+            return error.UnexpectedEof;
+        }
+
+        if (self.current_token_is(.illegal)) {
+            return error.IllegalToken;
+        }
+    }
 
     return Statement{ .let = stmt };
+}
+
+fn parse_return_statement(self: *Self) !Statement {
+    var stmt = try self.arena.allocator().create(ReturnStatement);
+    stmt.* = .{};
+    stmt.token = self.current_token;
+
+    while (!self.current_token_is(.semi)) : (try self.advance()) {
+        if (self.current_token_is(.eof)) {
+            return error.UnexpectedEof;
+        }
+
+        if (self.current_token_is(.illegal)) {
+            return error.IllegalToken;
+        }
+    }
+
+    return Statement{ .@"return" = stmt };
 }
 
 fn advance(self: *Self) !void {
@@ -92,9 +120,9 @@ fn is_eof(self: *Self) bool {
 }
 
 fn current_token_is(self: *Self, token_type_tag: TokenTypeTag) bool {
-    return @as(TokenTypeTag, self.current_token.type) == token_type_tag;
+    return self.current_token.type.is(token_type_tag);
 }
 
 fn next_token_is(self: *Self, token_type_tag: TokenTypeTag) bool {
-    return @as(TokenTypeTag, self.next_token.type) == token_type_tag;
+    return self.next_token.type.is(token_type_tag);
 }
