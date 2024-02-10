@@ -217,7 +217,7 @@ test "Lexer - Comment handling" {
     try expected_tokens.append(.{ .key = ":", .value = .colon });
     try expected_tokens.append(.{ .key = "u32", .value = .{ .identifier = "u32" } });
     try expected_tokens.append(.{ .key = "=", .value = .eq });
-    try expected_tokens.append(.{ .key = "10", .value = .{ .number = "10" } });
+    try expected_tokens.append(.{ .key = "10", .value = .{ .number = .{ .literal = "10" } } });
     try expected_tokens.append(.{ .key = ";", .value = .semi });
 
     for (expected_tokens.items) |expected| {
@@ -248,11 +248,11 @@ test "Lexer - Numeric literal" {
 
     var token = try lexer.scan();
     try testing.expectEqual(@intFromEnum(token.type), @intFromEnum(TokenType.number));
-    try testing.expectEqualStrings(token.type.number, "42");
+    try testing.expectEqualStrings(token.type.number.literal, "42");
 
     token = try lexer.scan();
     try testing.expectEqual(@intFromEnum(token.type), @intFromEnum(TokenType.number));
-    try testing.expectEqualStrings(token.type.number, "3.14");
+    try testing.expectEqualStrings(token.type.number.literal, "3.14");
 }
 
 // src/lexer/lexer_tests.zig
@@ -288,9 +288,9 @@ test "Lexer - Numeric literals" {
     var expected_tokens = ArrayList(struct { key: []const u8, value: TokenType }).init(ta);
     defer expected_tokens.deinit();
 
-    try expected_tokens.append(.{ .key = "42", .value = .{ .number = "42" } });
-    try expected_tokens.append(.{ .key = "3.14", .value = .{ .number = "3.14" } });
-    try expected_tokens.append(.{ .key = "123_456_789", .value = .{ .number = "123_456_789" } });
+    try expected_tokens.append(.{ .key = "42", .value = .{ .number = .{ .literal = "42" } } });
+    try expected_tokens.append(.{ .key = "3.14", .value = .{ .number = .{ .literal = "3.14" } } });
+    try expected_tokens.append(.{ .key = "123_456_789", .value = .{ .number = .{ .literal = "123_456_789" } } });
 
     // TODO: Implemented those cases
     // try expected_tokens.append(.{ .key = "0xFF", .value = .{ .number = "0xFF" } });

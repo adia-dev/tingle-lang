@@ -45,6 +45,17 @@ pub const Keyword = enum {
     }
 };
 
+pub const TokenNumberType = enum {
+    int,
+    float,
+
+    pub fn format(self: TokenNumberType, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+        _ = fmt;
+        _ = options;
+        try std.fmt.format(writer, "({s})", .{@tagName(self)});
+    }
+};
+
 pub const TokenType = union(TokenTypeTag) {
     // End of File
     eof,
@@ -58,7 +69,7 @@ pub const TokenType = union(TokenTypeTag) {
 
     // Literals
     character: u8, // ''
-    number: []const u8, // ""
+    number: struct { literal: []const u8, type: TokenNumberType = .int }, // ""
     string: []const u8, // ""
     raw_string: []const u8, // ~r""
     byte: u8, // b{value} (integer coercible)
@@ -138,7 +149,7 @@ pub const TokenType = union(TokenTypeTag) {
             .character => |char| try std.fmt.format(writer, "char('{c}')", .{char}),
             .keyword => |kw| try kw.format(fmt, options, writer),
             .identifier => |ident| try std.fmt.format(writer, "{s}(\"{s}\")", .{ @tagName(self), ident }),
-            .number => |number| try std.fmt.format(writer, "{s}(\"{s}\")", .{ @tagName(self), number }),
+            .number => |number| try std.fmt.format(writer, "{s}{s}(\"{s}\")", .{ @tagName(self), number.type, number.literal }),
             .string, .byte_string, .raw_string, .raw_byte_string => |string| try std.fmt.format(writer, "{s}(\"{s}\")", .{ @tagName(self), string }),
             else => |token_type| try std.fmt.format(writer, "{s}", .{@tagName(token_type)}),
         }

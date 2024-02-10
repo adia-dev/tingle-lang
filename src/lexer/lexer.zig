@@ -1,7 +1,8 @@
 pub const LexerError = @import("lexer_errors.zig").LexerError;
 
 const Token = @import("../token/token.zig");
-const TokenToken = Token.TokenType;
+const TokenType = Token.TokenType;
+const TokenNumberType = Token.TokenNumberType;
 const std = @import("std");
 const Self = @This();
 
@@ -67,9 +68,10 @@ pub fn scan(self: *Self) !Token {
             return token;
         },
         '0'...'9' => {
+            // tuple containing the literal and the type (int or float)
             const number = try self.scan_number();
-            token.type = .{ .number = number };
-            token.lexeme = number;
+            token.type = .{ .number = .{ .literal = number[0], .type = number[1] } };
+            token.lexeme = number[0];
 
             return token;
         },
@@ -448,8 +450,9 @@ fn scan_multi_line_comment(self: *Self) !void {
     self.advance();
 }
 
-fn scan_number(self: *Self) ![]const u8 {
+fn scan_number(self: *Self) !struct { []const u8, TokenNumberType } {
     const position = self.position;
+    var t: TokenNumberType = .int;
 
     var encountered_dots: usize = 0;
     while (true) {
@@ -460,11 +463,12 @@ fn scan_number(self: *Self) ![]const u8 {
                         'a'...'z', 'A'...'Z', '_' => {
                             // early returns, could be a function call
                             // e.g: 3.14.floor();
-                            return self.source_code[position..self.position];
+                            return .{ self.source_code[position..self.position], t };
                         },
                         else => {},
                     }
                     encountered_dots += 1;
+                    t = .float;
                 }
                 self.advance();
             },
@@ -477,7 +481,7 @@ fn scan_number(self: *Self) ![]const u8 {
         return error.InvalidNumberFormat;
     }
 
-    return self.source_code[position..self.position];
+    return .{ self.source_code[position..self.position], t };
 }
 
 fn scan_string(self: *Self) ![]const u8 {

@@ -1,1 +1,22 @@
-pub const Precedence = enum { @"return", assignment, range, logical_or, logical_and, cmp, eq, bitwist_or, bitwist_xor, bitwist_and, bitwist_shift, sum_sub, mul, cast, colon, unary, function_call, field, method_call, path };
+pub const Precedence = enum(u8) {
+    lowest,
+    assignment,
+    range,
+    logical_or,
+    logical_and,
+    cmp,
+    eq,
+    bitwist_or,
+    bitwist_xor,
+    bitwist_and,
+    bitwist_shift,
+    sum_sub,
+    mul,
+    cast,
+    colon,
+    unary,
+    function_call,
+    field,
+    method_call,
+    path,
+};

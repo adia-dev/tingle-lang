@@ -38,7 +38,7 @@ pub const StringLiteralExpression = struct {
 };
 
 pub const NumberLiteralExpression = struct {
-    value: i32,
+    value: i32 = 0,
 
     pub fn format(self: NumberLiteralExpression, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
         _ = fmt;
@@ -48,7 +48,7 @@ pub const NumberLiteralExpression = struct {
 };
 
 pub const ByteLiteralExpression = struct {
-    value: u8,
+    value: u8 = 0,
 
     pub fn format(self: ByteLiteralExpression, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
         _ = fmt;

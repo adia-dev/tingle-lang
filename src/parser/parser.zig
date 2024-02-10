@@ -6,24 +6,41 @@ const TokenType = Token.TokenType;
 const TokenTypeTag = Token.TokenTypeTag;
 const ParserError = @import("parser_error.zig").ParserError;
 
+const Precedence = @import("precedence.zig").Precedence;
+
 const Expressions = ast.Expressions;
+const Expression = Expressions.Expression;
 const Identifier = Expressions.Identifier;
+const LiteralExpression = Expressions.LiteralExpression;
 
 const Statements = ast.Statements;
 const Statement = Statements.Statement;
 const Program = Statements.Program;
 const LetStatement = Statements.LetStatement;
 const ReturnStatement = Statements.ReturnStatement;
+const ExpressionStatement = Statements.ExpressionStatement;
 
 const Self = @This();
+const PrefixFn = *const fn (self: *Self) anyerror!Expression;
+const InfixFn = *const fn (self: *Self) anyerror!Expression;
 
 lexer: *Lexer,
 current_token: Token = undefined,
 next_token: Token = undefined,
 arena: std.heap.ArenaAllocator,
 
+// parser functions
+prefix_fns: std.AutoHashMap(TokenTypeTag, PrefixFn) = undefined,
+infix_fns: std.AutoHashMap(TokenTypeTag, InfixFn) = undefined,
+
 pub fn init(allocator: std.mem.Allocator, lexer: *Lexer) !Self {
     var parser = Self{ .arena = std.heap.ArenaAllocator.init(allocator), .lexer = lexer };
+
+    parser.prefix_fns = std.AutoHashMap(TokenTypeTag, PrefixFn).init(allocator);
+    parser.infix_fns = std.AutoHashMap(TokenTypeTag, InfixFn).init(allocator);
+
+    try parser.init_prefix_fns();
+    try parser.init_infix_fns();
 
     try parser.advance();
     try parser.advance();
@@ -31,8 +48,18 @@ pub fn init(allocator: std.mem.Allocator, lexer: *Lexer) !Self {
     return parser;
 }
 
+fn init_prefix_fns(self: *Self) !void {
+    try self.prefix_fns.put(.identifier, Self.parse_identifier);
+    try self.prefix_fns.put(.number, Self.parse_number_literal);
+}
+
+fn init_infix_fns(self: *Self) !void {
+    _ = self;
+}
+
 pub fn deinit(self: *Self) void {
-    self.arena.deinit();
+    defer self.arena.deinit();
+    self.prefix_fns.deinit();
 }
 
 pub fn parse(self: *Self) !Program {
@@ -48,6 +75,17 @@ pub fn parse(self: *Self) !Program {
     return program;
 }
 
+fn parse_expression(self: *Self, precedence: Precedence) !?Expression {
+    _ = precedence; // autofix
+
+    if (self.prefix_fns.get(self.current_token.type)) |prefix_fn| {
+        const left_exp = try prefix_fn(self);
+        return left_exp;
+    } else {
+        return null;
+    }
+}
+
 fn parse_statement(self: *Self) !?Statement {
     switch (self.current_token.type) {
         .keyword => |kw| {
@@ -57,8 +95,26 @@ fn parse_statement(self: *Self) !?Statement {
                 else => return null,
             };
         },
-        else => return null,
+        else => return try self.parse_expression_statement(),
     }
+}
+
+fn parse_expression_statement(self: *Self) !Statement {
+    var expr_stmt = try self.arena.allocator().create(ExpressionStatement);
+    const current_token = self.current_token;
+
+    expr_stmt.* = .{};
+    expr_stmt.token = current_token;
+
+    if (try self.parse_expression(.lowest)) |expression| {
+        expr_stmt.expression = expression;
+    }
+
+    if (self.next_token_is(.semi)) {
+        try self.advance();
+    }
+
+    return Statement{ .expression_statement = expr_stmt };
 }
 
 fn parse_let_statement(self: *Self) !Statement {
@@ -108,6 +164,27 @@ fn parse_return_statement(self: *Self) !Statement {
     }
 
     return Statement{ .@"return" = stmt };
+}
+
+fn parse_identifier(self: *Self) !Expression {
+    var expr = try self.arena.allocator().create(Identifier);
+    expr.* = .{};
+    expr.token = self.current_token;
+    expr.value = self.current_token.type.identifier;
+
+    return Expression{ .identifier = expr };
+}
+
+fn parse_number_literal(self: *Self) !Expression {
+    const expr = try self.arena.allocator().create(LiteralExpression);
+    expr.* = .{ .number = .{} };
+
+    expr.number.value = switch (self.current_token.type.number.type) {
+        .int => try std.fmt.parseInt(i32, self.current_token.type.number.literal, 10),
+        .float => @as(i32, @intFromFloat(try std.fmt.parseFloat(f32, self.current_token.type.number.literal))),
+    };
+
+    return Expression{ .literal = expr };
 }
 
 fn advance(self: *Self) !void {

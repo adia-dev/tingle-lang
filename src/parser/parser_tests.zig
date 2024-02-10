@@ -61,6 +61,18 @@ fn assert_return_statement(stmt: *Statement) !void {
     return error.InvalidStatement;
 }
 
+fn assert_expression_statement(stmt: *Statement) !void {
+    switch (stmt.*) {
+        .expression_statement => |expression_statement| {
+            if (expression_statement != null) {
+                return;
+            }
+        },
+        else => {},
+    }
+    return error.InvalidStatement;
+}
+
 test "Parser - Parse let statements" {
     const ta = testing.allocator;
     const source_code: []const u8 =
@@ -130,6 +142,10 @@ test "Parser - Parse return statements" {
     var expected = ArrayList([]const u8).init(ta);
     defer expected.deinit();
 
+    try expected.append("");
+    try expected.append("");
+    try expected.append("");
+
     for (expected.items, 0..) |_, i| {
         var stmt = program.statements.items[i];
         try assert_return_statement(&stmt);
@@ -149,4 +165,69 @@ test "Parser - Parse return statements - Unexpected Eof" {
     defer parser.deinit();
 
     try testing.expectError(error.UnexpectedEof, parser.parse());
+}
+
+test "Parser - Parse identifier expressions" {
+    const ta = testing.allocator;
+    const source_code: []const u8 =
+        \\ foobar; 
+        \\ foo; 
+        \\ bar; 
+    ;
+
+    var lexer = try Lexer.init(ta, source_code);
+    defer lexer.deinit();
+
+    var parser = try Parser.init(ta, &lexer);
+    defer parser.deinit();
+
+    var program = try parser.parse();
+    defer program.deinit();
+
+    try testing.expectEqual(3, program.statements.items.len);
+
+    var expected = ArrayList([]const u8).init(ta);
+    defer expected.deinit();
+
+    try expected.append("foobar");
+    try expected.append("foo");
+    try expected.append("bar");
+
+    for (expected.items, 0..) |_, i| {
+        var stmt = program.statements.items[i];
+        try assert_expression_statement(&stmt);
+    }
+}
+
+test "Parser - Parse number literal expressions" {
+    const ta = testing.allocator;
+    const source_code: []const u8 =
+        \\ 5; 
+        \\ 3.14; 
+        \\ 10_000_000; 
+    ;
+
+    var lexer = try Lexer.init(ta, source_code);
+    defer lexer.deinit();
+
+    var parser = try Parser.init(ta, &lexer);
+    defer parser.deinit();
+
+    var program = try parser.parse();
+    defer program.deinit();
+
+    try testing.expectEqual(3, program.statements.items.len);
+
+    var expected = ArrayList(i32).init(ta);
+    defer expected.deinit();
+
+    try expected.append(5);
+    try expected.append(3);
+    try expected.append(10_000_000);
+
+    for (expected.items, 0..) |e, i| {
+        var stmt = program.statements.items[i];
+        try assert_expression_statement(&stmt);
+        try testing.expectEqual(e, stmt.expression_statement.?.expression.literal.?.number.value);
+    }
 }
