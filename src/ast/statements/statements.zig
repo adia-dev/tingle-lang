@@ -5,7 +5,14 @@ pub const LetStatement = @import("let_statement.zig");
 pub const ExpressionStatement = @import("expression_statement.zig");
 pub const ReturnStatement = @import("return_statement.zig");
 
-pub const Statement = union(enum) {
+pub const StatementTag = enum {
+    program,
+    let,
+    @"return",
+    expression_statement,
+};
+
+pub const Statement = union(StatementTag) {
     program: ?*Program,
     let: ?*LetStatement,
     @"return": ?*ReturnStatement,

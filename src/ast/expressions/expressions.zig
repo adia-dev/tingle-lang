@@ -7,7 +7,15 @@ pub const LiteralExpression = @import("literal_expression.zig").LiteralExpressio
 
 pub const Identifier = @import("identifier.zig");
 
-pub const Expression = union(enum) {
+pub const ExpressionTag = enum {
+    unary,
+    binary,
+    group,
+    literal,
+    identifier,
+};
+
+pub const Expression = union(ExpressionTag) {
     unary: ?*UnaryExpression,
     binary: ?*BinaryExpression,
     group: ?*GroupExpression,

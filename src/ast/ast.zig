@@ -14,7 +14,12 @@ pub const Statements = @import("statements/statements.zig");
 const Expression = Expressions.Expression;
 const Statement = Statements.Statement;
 
-pub const Node = union(enum) {
+pub const NodeTag = enum {
+    expression,
+    statement,
+};
+
+pub const Node = union(NodeTag) {
     expression: Expression,
     statement: Statement,
 

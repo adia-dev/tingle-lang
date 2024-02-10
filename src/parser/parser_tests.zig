@@ -9,8 +9,10 @@ const TokenType = Token.TokenType;
 const Expressions = ast.Expressions;
 const Statements = ast.Statements;
 
+const StatementTag = Statements.StatementTag;
 const Statement = Statements.Statement;
 
+const ExpressionTag = Expressions.ExpressionTag;
 const Identifier = Expressions.Identifier;
 
 const ArrayList = std.ArrayList;
@@ -61,10 +63,11 @@ fn assert_return_statement(stmt: *Statement) !void {
     return error.InvalidStatement;
 }
 
-fn assert_expression_statement(stmt: *Statement) !void {
+fn assert_expression_statement(stmt: *Statement, expected_expression_tag: ExpressionTag) !void {
     switch (stmt.*) {
         .expression_statement => |expression_statement| {
-            if (expression_statement != null) {
+            if (expression_statement) |expr_stmt| {
+                try testing.expectEqual(@intFromEnum(expected_expression_tag), @intFromEnum(@as(ExpressionTag, expr_stmt.expression)));
                 return;
             }
         },
@@ -195,7 +198,7 @@ test "Parser - Parse identifier expressions" {
 
     for (expected.items, 0..) |_, i| {
         var stmt = program.statements.items[i];
-        try assert_expression_statement(&stmt);
+        try assert_expression_statement(&stmt, .identifier);
     }
 }
 
@@ -227,7 +230,7 @@ test "Parser - Parse number literal expressions" {
 
     for (expected.items, 0..) |e, i| {
         var stmt = program.statements.items[i];
-        try assert_expression_statement(&stmt);
+        try assert_expression_statement(&stmt, .literal);
         try testing.expectEqual(e, stmt.expression_statement.?.expression.literal.?.number.value);
     }
 }
