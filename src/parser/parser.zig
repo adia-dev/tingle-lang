@@ -199,8 +199,8 @@ fn parse_number_literal(self: *Self) !Expression {
     expr.* = .{};
 
     expr.value = switch (self.current_token.type.number.type) {
-        .int => try std.fmt.parseInt(i32, self.current_token.type.number.literal, 10),
-        .float => @as(i32, @intFromFloat(try std.fmt.parseFloat(f32, self.current_token.type.number.literal))),
+        .int => .{ .int = try std.fmt.parseInt(i32, self.current_token.type.number.literal, 10) },
+        .float => .{ .float = try std.fmt.parseFloat(f32, self.current_token.type.number.literal) },
     };
 
     return Expression{ .number = expr };

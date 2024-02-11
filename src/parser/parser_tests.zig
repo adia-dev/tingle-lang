@@ -18,6 +18,8 @@ const IdentifierExpression = Expressions.IdentifierExpression;
 const NumberLiteralExpression = Expressions.NumberLiteralExpression;
 const UnaryExpression = Expressions.UnaryExpression;
 
+const NumberLiteralValue = NumberLiteralExpression.NumberLiteralValue;
+
 const ArrayList = std.ArrayList;
 const StringHashMap = std.StringHashMap;
 const AutoHashMap = std.AutoHashMap;
@@ -31,8 +33,8 @@ fn assert_identifier_expression(identifier: *IdentifierExpression, expected_name
     try testing.expectEqualStrings(expected_name, identifier.value);
 }
 
-fn assert_number_literal(number: *NumberLiteralExpression, expected_value: i32) !void {
-    try testing.expectEqual(expected_value, number.value);
+fn assert_number_literal(number: *NumberLiteralExpression, expected_value: NumberLiteralValue) !void {
+    try testing.expectEqual(number.value, expected_value);
 }
 
 fn assert_let_statement(stmt: *Statement, expected_name: []const u8) !void {
@@ -228,17 +230,21 @@ test "Parser - Parse number literal expressions" {
 
     try testing.expectEqual(3, program.statements.items.len);
 
-    var expected = ArrayList(i32).init(ta);
+    var expected = ArrayList(NumberLiteralValue).init(ta);
     defer expected.deinit();
 
-    try expected.append(5);
-    try expected.append(3);
-    try expected.append(10_000_000);
+    try expected.append(.{ .int = 5 });
+    try expected.append(.{ .float = 3.14 });
+    try expected.append(.{ .int = 10_000_000 });
 
     for (expected.items, 0..) |e, i| {
         var stmt = program.statements.items[i];
         try assert_expression_statement(&stmt, .number);
-        try testing.expectEqual(e, stmt.expression_statement.?.expression.number.?.value);
+        if (stmt.downcast(ExpressionStatement)) |expr_stmt| {
+            if (expr_stmt.expression.downcast(NumberLiteralExpression)) |number| {
+                try assert_number_literal(number, e);
+            }
+        }
     }
 }
 
@@ -261,22 +267,21 @@ test "Parser - NumberLiteralExpression - downcast" {
 
     try testing.expectEqual(3, program.statements.items.len);
 
-    var expected = ArrayList(i32).init(ta);
+    var expected = ArrayList(NumberLiteralValue).init(ta);
     defer expected.deinit();
 
-    try expected.append(5);
-    try expected.append(3);
-    try expected.append(10_000_000);
+    try expected.append(.{ .int = 5 });
+    try expected.append(.{ .float = 3.14 });
+    try expected.append(.{ .int = 10_000_000 });
 
     for (expected.items, 0..) |e, i| {
         var stmt = program.statements.items[i];
+        try assert_expression_statement(&stmt, .number);
         if (stmt.downcast(ExpressionStatement)) |expr_stmt| {
             if (expr_stmt.expression.downcast(NumberLiteralExpression)) |number| {
                 try assert_number_literal(number, e);
             }
         }
-        try assert_expression_statement(&stmt, .number);
-        try testing.expectEqual(e, stmt.expression_statement.?.expression.number.?.value);
     }
 }
 
@@ -298,11 +303,11 @@ test "Parser - Parse UnaryExpression" {
 
     try testing.expectEqual(2, program.statements.items.len);
 
-    var expected = ArrayList(struct { []const u8, []const u8, i32 }).init(ta);
+    var expected = ArrayList(struct { []const u8, []const u8, NumberLiteralValue }).init(ta);
     defer expected.deinit();
 
-    try expected.append(.{ "!5", "!", 5 });
-    try expected.append(.{ "-3.14", "-", 3 });
+    try expected.append(.{ "!5", "!", .{ .int = 5 } });
+    try expected.append(.{ "-3.14", "-", .{ .float = 3.14 } });
 
     for (expected.items, 0..) |e, i| {
         var stmt = program.statements.items[i];
