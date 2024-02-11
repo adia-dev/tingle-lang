@@ -5,10 +5,7 @@ const ast = @import("ast/ast.zig");
 const Expressions = ast.Expressions;
 const Statements = ast.Statements;
 
-pub const std_options = struct {
-    pub const log_level = .debug;
-    pub const logFn = Logger.log;
-};
+pub const std_options: std.Options = .{ .log_level = .debug, .logFn = Logger.log };
 
 pub fn main() !void {
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
