@@ -4,8 +4,8 @@ const Expression = @import("expressions.zig").Expression;
 const Token = @import("../../token/token.zig");
 const Self = @This();
 
-operator: Token,
-expression: Expression,
+operator: Token = undefined,
+expression: Expression = undefined,
 
 pub fn format(self: Self, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
     _ = fmt;

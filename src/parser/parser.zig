@@ -12,6 +12,7 @@ const Expressions = ast.Expressions;
 const Expression = Expressions.Expression;
 const IdentifierExpression = Expressions.IdentifierExpression;
 const NumberLiteralExpression = Expressions.NumberLiteralExpression;
+const UnaryExpression = Expressions.UnaryExpression;
 
 const Statements = ast.Statements;
 const Statement = Statements.Statement;
@@ -21,8 +22,8 @@ const ReturnStatement = Statements.ReturnStatement;
 const ExpressionStatement = Statements.ExpressionStatement;
 
 const Self = @This();
-const PrefixFn = *const fn (self: *Self) anyerror!Expression;
-const InfixFn = *const fn (self: *Self) anyerror!Expression;
+const UnaryFn = *const fn (self: *Self) anyerror!Expression;
+const BinaryFn = *const fn (self: *Self) anyerror!Expression;
 
 lexer: *Lexer,
 current_token: Token = undefined,
@@ -30,17 +31,17 @@ next_token: Token = undefined,
 arena: std.heap.ArenaAllocator,
 
 // parser functions
-prefix_fns: std.AutoHashMap(TokenTypeTag, PrefixFn) = undefined,
-infix_fns: std.AutoHashMap(TokenTypeTag, InfixFn) = undefined,
+unary_fns: std.AutoHashMap(TokenTypeTag, UnaryFn) = undefined,
+binary_fns: std.AutoHashMap(TokenTypeTag, BinaryFn) = undefined,
 
 pub fn init(allocator: std.mem.Allocator, lexer: *Lexer) !Self {
     var parser = Self{ .arena = std.heap.ArenaAllocator.init(allocator), .lexer = lexer };
 
-    parser.prefix_fns = std.AutoHashMap(TokenTypeTag, PrefixFn).init(allocator);
-    parser.infix_fns = std.AutoHashMap(TokenTypeTag, InfixFn).init(allocator);
+    parser.unary_fns = std.AutoHashMap(TokenTypeTag, UnaryFn).init(allocator);
+    parser.binary_fns = std.AutoHashMap(TokenTypeTag, BinaryFn).init(allocator);
 
-    try parser.init_prefix_fns();
-    try parser.init_infix_fns();
+    try parser.init_unary_fns();
+    try parser.init_binary_fns();
 
     try parser.advance();
     try parser.advance();
@@ -48,18 +49,23 @@ pub fn init(allocator: std.mem.Allocator, lexer: *Lexer) !Self {
     return parser;
 }
 
-fn init_prefix_fns(self: *Self) !void {
-    try self.prefix_fns.put(.identifier, Self.parse_identifier);
-    try self.prefix_fns.put(.number, Self.parse_number_literal);
+fn init_unary_fns(self: *Self) !void {
+    try self.unary_fns.put(.identifier, Self.parse_identifier);
+    try self.unary_fns.put(.number, Self.parse_number_literal);
+
+    try self.unary_fns.put(.not, Self.parse_unary_expression);
+    try self.unary_fns.put(.minus, Self.parse_unary_expression);
+    try self.unary_fns.put(.minusminus, Self.parse_unary_expression);
+    try self.unary_fns.put(.plusplus, Self.parse_unary_expression);
 }
 
-fn init_infix_fns(self: *Self) !void {
+fn init_binary_fns(self: *Self) !void {
     _ = self;
 }
 
 pub fn deinit(self: *Self) void {
     defer self.arena.deinit();
-    self.prefix_fns.deinit();
+    self.unary_fns.deinit();
 }
 
 pub fn parse(self: *Self) !Program {
@@ -78,12 +84,25 @@ pub fn parse(self: *Self) !Program {
 fn parse_expression(self: *Self, precedence: Precedence) !?Expression {
     _ = precedence; // autofix
 
-    if (self.prefix_fns.get(self.current_token.type)) |prefix_fn| {
-        const left_exp = try prefix_fn(self);
+    if (self.unary_fns.get(self.current_token.type)) |unary_fn| {
+        const left_exp = try unary_fn(self);
         return left_exp;
     } else {
         return null;
     }
+}
+
+fn parse_unary_expression(self: *Self) !Expression {
+    var unary_expr = try self.arena.allocator().create(UnaryExpression);
+    unary_expr.* = .{ .operator = self.current_token };
+
+    try self.advance();
+
+    if (try self.parse_expression(.unary)) |expression| {
+        unary_expr.expression = expression;
+    }
+
+    return Expression{ .unary = unary_expr };
 }
 
 fn parse_statement(self: *Self) !?Statement {

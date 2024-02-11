@@ -16,6 +16,7 @@ const ExpressionStatement = Statements.ExpressionStatement;
 const ExpressionTag = Expressions.ExpressionTag;
 const IdentifierExpression = Expressions.IdentifierExpression;
 const NumberLiteralExpression = Expressions.NumberLiteralExpression;
+const UnaryExpression = Expressions.UnaryExpression;
 
 const ArrayList = std.ArrayList;
 const StringHashMap = std.StringHashMap;
@@ -276,5 +277,42 @@ test "Parser - NumberLiteralExpression - downcast" {
         }
         try assert_expression_statement(&stmt, .number);
         try testing.expectEqual(e, stmt.expression_statement.?.expression.number.?.value);
+    }
+}
+
+test "Parser - Parse UnaryExpression" {
+    const ta = testing.allocator;
+    const source_code: []const u8 =
+        \\ !5; 
+        \\ -3.14;
+    ;
+
+    var lexer = try Lexer.init(ta, source_code);
+    defer lexer.deinit();
+
+    var parser = try Parser.init(ta, &lexer);
+    defer parser.deinit();
+
+    var program = try parser.parse();
+    defer program.deinit();
+
+    try testing.expectEqual(2, program.statements.items.len);
+
+    var expected = ArrayList(struct { []const u8, []const u8, i32 }).init(ta);
+    defer expected.deinit();
+
+    try expected.append(.{ "!5", "!", 5 });
+    try expected.append(.{ "-3.14", "-", 3 });
+
+    for (expected.items, 0..) |e, i| {
+        var stmt = program.statements.items[i];
+        if (stmt.downcast(ExpressionStatement)) |expr_stmt| {
+            if (expr_stmt.expression.downcast(UnaryExpression)) |unary| {
+                try testing.expectEqualStrings(e[1], unary.operator.lexeme);
+                if (unary.expression.downcast(NumberLiteralExpression)) |number| {
+                    try assert_number_literal(number, e[2]);
+                }
+            }
+        }
     }
 }
