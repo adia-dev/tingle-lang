@@ -1,9 +1,7 @@
 const std = @import("std");
 const Self = @This();
 const Token = @import("../../token/token.zig");
-const Expressions = @import("../expressions/expressions.zig");
-const Expression = Expressions.Expression;
-const Identifier = Expressions.Identifier;
+const Expression = @import("../expressions/expressions.zig").Expression;
 
 token: Token = undefined,
 return_value: ?Expression = null,

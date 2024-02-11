@@ -11,9 +11,11 @@ const Statements = ast.Statements;
 
 const StatementTag = Statements.StatementTag;
 const Statement = Statements.Statement;
+const ExpressionStatement = Statements.ExpressionStatement;
 
 const ExpressionTag = Expressions.ExpressionTag;
-const Identifier = Expressions.Identifier;
+const IdentifierExpression = Expressions.IdentifierExpression;
+const NumberLiteralExpression = Expressions.NumberLiteralExpression;
 
 const ArrayList = std.ArrayList;
 const StringHashMap = std.StringHashMap;
@@ -22,10 +24,14 @@ const testing = std.testing;
 
 const Keyword = Token.Keyword;
 
-fn assert_identifier(identifier: *Identifier, expected_name: []const u8) !void {
+fn assert_identifier_expression(identifier: *IdentifierExpression, expected_name: []const u8) !void {
     try testing.expect(identifier.token.type.is(.identifier));
     try testing.expectEqualStrings(expected_name, identifier.token.type.identifier);
     try testing.expectEqualStrings(expected_name, identifier.value);
+}
+
+fn assert_number_literal(number: *NumberLiteralExpression, expected_value: i32) !void {
+    try testing.expectEqual(expected_value, number.value);
 }
 
 fn assert_let_statement(stmt: *Statement, expected_name: []const u8) !void {
@@ -35,7 +41,7 @@ fn assert_let_statement(stmt: *Statement, expected_name: []const u8) !void {
                 if (let.token.type.is(.keyword)) {
                     try testing.expectEqual(.let, let.token.type.keyword);
                     try testing.expectEqualStrings("let", let.token.lexeme);
-                    try assert_identifier(&let.identifier, expected_name);
+                    try assert_identifier_expression(&let.identifier, expected_name);
 
                     return;
                 }
@@ -230,7 +236,45 @@ test "Parser - Parse number literal expressions" {
 
     for (expected.items, 0..) |e, i| {
         var stmt = program.statements.items[i];
-        try assert_expression_statement(&stmt, .literal);
-        try testing.expectEqual(e, stmt.expression_statement.?.expression.literal.?.number.value);
+        try assert_expression_statement(&stmt, .number);
+        try testing.expectEqual(e, stmt.expression_statement.?.expression.number.?.value);
+    }
+}
+
+test "Parser - NumberLiteralExpression - downcast" {
+    const ta = testing.allocator;
+    const source_code: []const u8 =
+        \\ 5; 
+        \\ 3.14;
+        \\ 10_000_000; 
+    ;
+
+    var lexer = try Lexer.init(ta, source_code);
+    defer lexer.deinit();
+
+    var parser = try Parser.init(ta, &lexer);
+    defer parser.deinit();
+
+    var program = try parser.parse();
+    defer program.deinit();
+
+    try testing.expectEqual(3, program.statements.items.len);
+
+    var expected = ArrayList(i32).init(ta);
+    defer expected.deinit();
+
+    try expected.append(5);
+    try expected.append(3);
+    try expected.append(10_000_000);
+
+    for (expected.items, 0..) |e, i| {
+        var stmt = program.statements.items[i];
+        if (stmt.downcast(ExpressionStatement)) |expr_stmt| {
+            if (expr_stmt.expression.downcast(NumberLiteralExpression)) |number| {
+                try assert_number_literal(number, e);
+            }
+        }
+        try assert_expression_statement(&stmt, .number);
+        try testing.expectEqual(e, stmt.expression_statement.?.expression.number.?.value);
     }
 }

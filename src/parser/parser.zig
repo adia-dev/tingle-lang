@@ -10,8 +10,8 @@ const Precedence = @import("precedence.zig").Precedence;
 
 const Expressions = ast.Expressions;
 const Expression = Expressions.Expression;
-const Identifier = Expressions.Identifier;
-const LiteralExpression = Expressions.LiteralExpression;
+const IdentifierExpression = Expressions.IdentifierExpression;
+const NumberLiteralExpression = Expressions.NumberLiteralExpression;
 
 const Statements = ast.Statements;
 const Statement = Statements.Statement;
@@ -128,7 +128,7 @@ fn parse_let_statement(self: *Self) !Statement {
 
     stmt.* = .{};
     stmt.token = current_token;
-    stmt.identifier = Identifier{ .token = self.current_token, .value = self.current_token.lexeme };
+    stmt.identifier = IdentifierExpression{ .token = self.current_token, .value = self.current_token.lexeme };
 
     if (!self.next_token_is(.eq)) {
         return error.UnexpectedToken;
@@ -167,7 +167,7 @@ fn parse_return_statement(self: *Self) !Statement {
 }
 
 fn parse_identifier(self: *Self) !Expression {
-    var expr = try self.arena.allocator().create(Identifier);
+    var expr = try self.arena.allocator().create(IdentifierExpression);
     expr.* = .{};
     expr.token = self.current_token;
     expr.value = self.current_token.type.identifier;
@@ -176,15 +176,15 @@ fn parse_identifier(self: *Self) !Expression {
 }
 
 fn parse_number_literal(self: *Self) !Expression {
-    const expr = try self.arena.allocator().create(LiteralExpression);
-    expr.* = .{ .number = .{} };
+    const expr = try self.arena.allocator().create(NumberLiteralExpression);
+    expr.* = .{};
 
-    expr.number.value = switch (self.current_token.type.number.type) {
+    expr.value = switch (self.current_token.type.number.type) {
         .int => try std.fmt.parseInt(i32, self.current_token.type.number.literal, 10),
         .float => @as(i32, @intFromFloat(try std.fmt.parseFloat(f32, self.current_token.type.number.literal))),
     };
 
-    return Expression{ .literal = expr };
+    return Expression{ .number = expr };
 }
 
 fn advance(self: *Self) !void {

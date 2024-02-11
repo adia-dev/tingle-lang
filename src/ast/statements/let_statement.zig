@@ -3,10 +3,10 @@ const Self = @This();
 const Token = @import("../../token/token.zig");
 const Expressions = @import("../expressions/expressions.zig");
 const Expression = Expressions.Expression;
-const Identifier = Expressions.Identifier;
+const IdentifierExpression = Expressions.IdentifierExpression;
 
 token: Token = undefined,
-identifier: Identifier = undefined,
+identifier: IdentifierExpression = undefined,
 expression: Expression = undefined,
 
 pub fn format(self: Self, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
