@@ -11,5 +11,5 @@ right: Expression = undefined,
 pub fn format(self: Self, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
     _ = fmt;
     _ = options;
-    try std.fmt.format(writer, "({s} {} {})", .{ self.operator.lexeme, self.left, self.right });
+    try std.fmt.format(writer, "({} {s} {})", .{ self.left, self.operator.lexeme, self.right });
 }

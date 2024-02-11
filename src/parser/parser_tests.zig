@@ -378,3 +378,62 @@ test "Parser - Parse BinaryExpression" {
         }
     }
 }
+
+test "Parser - Precedence" {
+    const ta = testing.allocator;
+    const source_code: []const u8 =
+        \\ -a * b;
+        \\ !-a;
+        \\ a + b + c;
+        \\ a + b - c;
+        \\ a * b * c;
+        \\ a * b / c;
+        \\ a + b / c;
+        \\ a + b * c + d / e - f;
+        \\ 3 + 4;
+        \\ -5 * 5;
+        \\ 5 > 4 == 3 < 4;
+        \\ 5 < 4 != 3 > 4;
+        \\ 3 + 4 * 5 == 3 * 1 + 4 * 5;
+        \\ 3 + 4 * 5 == 3 * 1 + 4 * 5;
+    ;
+
+    var lexer = try Lexer.init(ta, source_code);
+    defer lexer.deinit();
+
+    var parser = try Parser.init(ta, &lexer);
+    defer parser.deinit();
+
+    var program = try parser.parse();
+    defer program.deinit();
+
+    var expected = ArrayList([]const u8).init(ta);
+    defer expected.deinit();
+
+    try expected.append("((-a) * b)");
+    try expected.append("(!(-a))");
+    try expected.append("((a + b) + c)");
+    try expected.append("((a + b) - c)");
+    try expected.append("((a * b) * c)");
+    try expected.append("((a * b) / c)");
+    try expected.append("(a + (b / c))");
+    try expected.append("(((a + (b * c)) + (d / e)) - f)");
+    try expected.append("(3 + 4)");
+    try expected.append("((-5) * 5)");
+    try expected.append("((5 > 4) == (3 < 4))");
+    try expected.append("((5 < 4) != (3 > 4))");
+    try expected.append("((3 + (4 * 5)) == ((3 * 1) + (4 * 5)))");
+    try expected.append("((3 + (4 * 5)) == ((3 * 1) + (4 * 5)))");
+
+    var arr_buf = ArrayList(u8).init(ta);
+    defer arr_buf.deinit();
+
+    for (expected.items, 0..) |e, i| {
+        var stmt = program.statements.items[i];
+        if (stmt.downcast(ExpressionStatement)) |expr_stmt| {
+            try std.fmt.format(arr_buf.writer(), "{}", .{expr_stmt.expression});
+            try testing.expectEqualStrings(e, arr_buf.items);
+            arr_buf.clearRetainingCapacity();
+        }
+    }
+}
