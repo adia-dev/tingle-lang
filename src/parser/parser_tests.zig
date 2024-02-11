@@ -17,6 +17,7 @@ const ExpressionTag = Expressions.ExpressionTag;
 const IdentifierExpression = Expressions.IdentifierExpression;
 const NumberLiteralExpression = Expressions.NumberLiteralExpression;
 const UnaryExpression = Expressions.UnaryExpression;
+const BinaryExpression = Expressions.BinaryExpression;
 
 const NumberLiteralValue = NumberLiteralExpression.NumberLiteralValue;
 
@@ -315,6 +316,62 @@ test "Parser - Parse UnaryExpression" {
             if (expr_stmt.expression.downcast(UnaryExpression)) |unary| {
                 try testing.expectEqualStrings(e[1], unary.operator.lexeme);
                 if (unary.expression.downcast(NumberLiteralExpression)) |number| {
+                    try assert_number_literal(number, e[2]);
+                }
+            }
+        }
+    }
+}
+
+test "Parser - Parse BinaryExpression" {
+    const ta = testing.allocator;
+    const source_code: []const u8 =
+        \\ 3.14 + 3.14;
+        \\ 10 * 2;
+        \\ 5 - 5;
+        \\ 5 * 5;
+        \\ 5 ** 5;
+        \\ 5 / 5;
+        \\ 5 > 5;
+        \\ 5 < 5;
+        \\ 5 == 5;
+        \\ 5 != 5;
+    ;
+
+    var lexer = try Lexer.init(ta, source_code);
+    defer lexer.deinit();
+
+    var parser = try Parser.init(ta, &lexer);
+    defer parser.deinit();
+
+    var program = try parser.parse();
+    defer program.deinit();
+
+    var expected = ArrayList(struct { NumberLiteralValue, []const u8, NumberLiteralValue }).init(ta);
+    defer expected.deinit();
+
+    try expected.append(.{ .{ .float = 3.14 }, "+", .{ .float = 3.14 } });
+    try expected.append(.{ .{ .int = 10 }, "*", .{ .int = 2 } });
+    try expected.append(.{ .{ .int = 5 }, "-", .{ .int = 5 } });
+    try expected.append(.{ .{ .int = 5 }, "*", .{ .int = 5 } });
+    try expected.append(.{ .{ .int = 5 }, "**", .{ .int = 5 } });
+    try expected.append(.{ .{ .int = 5 }, "/", .{ .int = 5 } });
+    try expected.append(.{ .{ .int = 5 }, ">", .{ .int = 5 } });
+    try expected.append(.{ .{ .int = 5 }, "<", .{ .int = 5 } });
+    try expected.append(.{ .{ .int = 5 }, "==", .{ .int = 5 } });
+    try expected.append(.{ .{ .int = 5 }, "!=", .{ .int = 5 } });
+
+    for (expected.items, 0..) |e, i| {
+        var stmt = program.statements.items[i];
+        if (stmt.downcast(ExpressionStatement)) |expr_stmt| {
+            if (expr_stmt.expression.downcast(BinaryExpression)) |binary| {
+                if (binary.left.downcast(NumberLiteralExpression)) |number| {
+                    try assert_number_literal(number, e[0]);
+                }
+
+                try testing.expectEqualStrings(e[1], binary.operator.lexeme);
+
+                if (binary.right.downcast(NumberLiteralExpression)) |number| {
                     try assert_number_literal(number, e[2]);
                 }
             }

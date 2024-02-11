@@ -1,5 +1,6 @@
 const std = @import("std");
 const Lexer = @import("../lexer/lexer.zig");
+const Parser = @import("../parser/parser.zig");
 const Logger = @import("../core/logger.zig");
 const c = @cImport({
     @cInclude("readline/readline.h");
@@ -52,16 +53,18 @@ pub fn read(self: *Self) !void {
 pub fn eval(self: *Self) !void {
     var lexer = try Lexer.init(self.allocator, self.input);
 
-    while (true) {
-        const token = lexer.scan() catch {
-            for (lexer.errors.items) |e| {
-                std.debug.print("{}\n", .{e});
-            }
-            break;
-        };
-        if (token.type == .eof or token.type == .illegal) {
-            break;
-        }
-        std.debug.print("{}\n", .{token});
+    defer lexer.deinit();
+
+    var parser = try Parser.init(self.allocator, &lexer);
+    defer parser.deinit();
+
+    var program = parser.parse() catch |err| {
+        std.debug.print("{}\n", .{err});
+        return;
+    };
+    defer program.deinit();
+
+    for (program.statements.items) |stmt| {
+        std.debug.print("{}\n", .{stmt});
     }
 }
