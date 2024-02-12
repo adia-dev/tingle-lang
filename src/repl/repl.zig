@@ -55,7 +55,9 @@ pub fn eval(self: *Self) !void {
 
     defer lexer.deinit();
 
-    var parser = try Parser.init(self.allocator, &lexer);
+    var parser = Parser.init(self.allocator, &lexer) catch {
+        return;
+    };
     defer parser.deinit();
 
     var program = parser.parse() catch |err| {

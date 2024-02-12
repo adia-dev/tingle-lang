@@ -207,20 +207,19 @@ fn parse_let_statement(self: *Self) !Statement {
     stmt.token = current_token;
     stmt.identifier = IdentifierExpression{ .token = self.current_token, .value = self.current_token.lexeme };
 
+    if (self.next_token_is(.semi)) {
+        return Statement{ .let = stmt };
+    }
+
     if (!self.next_token_is(.eq)) {
         return error.UnexpectedToken;
     }
+    // skip until start of the expression
+    try self.advance();
     try self.advance();
 
-    while (!self.current_token_is(.semi)) : (try self.advance()) {
-        if (self.current_token_is(.eof)) {
-            return error.UnexpectedEof;
-        }
-
-        if (self.current_token_is(.illegal)) {
-            return error.IllegalToken;
-        }
-    }
+    stmt.expression = try self.parse_expression(.lowest);
+    try self.advance();
 
     return Statement{ .let = stmt };
 }
@@ -266,7 +265,12 @@ fn parse_number_literal(self: *Self) !Expression {
 
 fn advance(self: *Self) !void {
     self.current_token = self.next_token;
-    self.next_token = try self.lexer.scan();
+    self.next_token = self.lexer.scan() catch {
+        for (self.lexer.errors.items) |err| {
+            std.debug.print("{}\n", .{err});
+        }
+        return error.LexerError;
+    };
 }
 
 fn is_eof(self: *Self) bool {

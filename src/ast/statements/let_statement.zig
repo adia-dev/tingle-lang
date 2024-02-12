@@ -7,10 +7,14 @@ const IdentifierExpression = Expressions.IdentifierExpression;
 
 token: Token = undefined,
 identifier: IdentifierExpression = undefined,
-expression: Expression = undefined,
+expression: ?Expression = undefined,
 
 pub fn format(self: Self, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
     _ = fmt;
     _ = options;
-    try std.fmt.format(writer, "{s} {} = {};", .{ self.token.lexeme, self.identifier, self.expression });
+    if (self.expression) |expression| {
+        try std.fmt.format(writer, "{s} {} = {};", .{ self.token.lexeme, self.identifier, expression });
+    } else {
+        try std.fmt.format(writer, "{s} {};", .{ self.token.lexeme, self.identifier });
+    }
 }
