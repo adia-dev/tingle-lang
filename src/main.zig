@@ -1,11 +1,11 @@
 const std = @import("std");
-const Logger = @import("core/logger.zig");
+const ChromaLogger = @import("chroma-logger");
 const REPL = @import("repl/repl.zig");
 const ast = @import("ast/ast.zig");
 const Expressions = ast.Expressions;
 const Statements = ast.Statements;
 
-pub const std_options: std.Options = .{ .log_level = .debug, .logFn = Logger.log };
+pub const std_options: std.Options = .{ .log_level = .debug, .logFn = ChromaLogger.log };
 
 pub fn main() !void {
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);

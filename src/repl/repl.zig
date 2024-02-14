@@ -1,7 +1,6 @@
 const std = @import("std");
 const Lexer = @import("../lexer/lexer.zig");
 const Parser = @import("../parser/parser.zig");
-const Logger = @import("../core/logger.zig");
 const c = @cImport({
     @cInclude("readline/readline.h");
     @cInclude("readline/history.h");
@@ -27,6 +26,7 @@ pub fn deinit(self: *Self) void {
 
 pub fn start(self: *Self) !void {
     std.debug.print("\n", .{});
+    std.log.info("{green}REPL v0.1.0 {magenta}tingle", .{});
     while (self.is_running) {
         defer c.free(self.c_input);
 

@@ -2,8 +2,10 @@ const std = @import("std");
 
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
-
     const optimize = b.standardOptimizeOption(.{});
+
+    const chroma_dep = b.dependency("chroma", .{ .target = target, .optimize = optimize });
+    const chroma_logger_dep = b.dependency("chroma-logger", .{ .target = target, .optimize = optimize });
 
     const lib = b.addStaticLibrary(.{
         .name = "tingle-lang",
@@ -22,6 +24,8 @@ pub fn build(b: *std.Build) void {
     });
 
     exe.linkSystemLibrary("readline");
+    exe.root_module.addImport("chroma", chroma_dep.module("chroma"));
+    exe.root_module.addImport("chroma-logger", chroma_logger_dep.module("chroma-logger"));
 
     b.installArtifact(exe);
 
