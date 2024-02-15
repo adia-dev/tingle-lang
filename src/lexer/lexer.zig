@@ -4,6 +4,7 @@ const Token = @import("../token/token.zig");
 const TokenType = Token.TokenType;
 const TokenNumberType = Token.TokenNumberType;
 const std = @import("std");
+const chroma = @import("chroma");
 const Self = @This();
 
 line: usize = 1,
@@ -15,6 +16,7 @@ current_token: ?*Token = null,
 
 allocator: std.mem.Allocator,
 source_code: []const u8,
+source_code_lines: std.ArrayList([]const u8) = undefined,
 errors: std.ArrayList(LexerError),
 
 // TODO: change this to be statically initialized
@@ -24,6 +26,7 @@ pub fn init(allocator: std.mem.Allocator, source_code: []const u8) !Self {
     var lexer = Self{ .allocator = allocator, .source_code = source_code, .errors = std.ArrayList(LexerError).init(allocator) };
 
     try lexer.init_keywords();
+    try lexer.init_source_code_lines();
 
     lexer.advance();
 
@@ -33,6 +36,37 @@ pub fn init(allocator: std.mem.Allocator, source_code: []const u8) !Self {
 pub fn deinit(self: *Self) void {
     self.keywords.deinit();
     self.errors.deinit();
+    self.source_code_lines.deinit();
+}
+
+fn init_source_code_lines(self: *Self) !void {
+    self.source_code_lines = std.ArrayList([]const u8).init(self.allocator);
+
+    var i: usize = 0;
+    var last_line_position: usize = 0;
+    while (i < self.source_code.len) : (i += 1) {
+        switch (self.source_code[i]) {
+            '\n', 0 => {
+                if (i != last_line_position) {
+                    try self.source_code_lines.append(self.source_code[last_line_position..i]);
+                    last_line_position = i + 1;
+                    i += 1;
+                }
+            },
+            else => {},
+        }
+    }
+
+    if (i != last_line_position) {
+        try self.source_code_lines.append(self.source_code[last_line_position..i]);
+        last_line_position = i + 1;
+        i += 1;
+    }
+
+    std.debug.print("Source Code:\n", .{});
+    for (self.source_code_lines.items) |line| {
+        std.debug.print(comptime chroma.format("{241}{s}\n"), .{line});
+    }
 }
 
 fn init_keywords(self: *Self) !void {
@@ -357,7 +391,7 @@ pub fn scan(self: *Self) !Token {
     token.lexeme = lexeme;
 
     if (token.type == .illegal) {
-        try self.errors.append(.{ .@"error" = error.IllegalCharacter, .lexer = self, .trace = .{ .illegal_character = .{ .char = self.source_code[self.position] } } });
+        try self.errors.append(.{ .@"error" = error.IllegalCharacter, .lexer = self, .code = .{ .illegal_character = .{ .char = self.source_code[self.position] } } });
         return error.IllegalCharacter;
     }
 
@@ -433,7 +467,7 @@ fn scan_multi_line_comment(self: *Self) !void {
     while (true) : (self.advance()) {
         switch (self.c) {
             0 => {
-                try self.errors.append(.{ .@"error" = error.UnmatchedDelimiter, .lexer = self, .trace = .{ .unmatched_delimiter = .{ .expected_delimiter = "*/" } } });
+                try self.errors.append(.{ .@"error" = error.UnmatchedDelimiter, .lexer = self, .code = .{ .unmatched_delimiter = .{ .expected_delimiter = "*/" } } });
                 return error.UnmatchedDelimiter;
             },
             '*' => {
@@ -477,7 +511,7 @@ fn scan_number(self: *Self) !struct { []const u8, TokenNumberType } {
     }
 
     if (encountered_dots > 1) {
-        try self.errors.append(.{ .@"error" = error.InvalidNumberFormat, .lexer = self, .trace = .{ .invalid_number_format = .{ .number = self.source_code[position..self.position] } } });
+        try self.errors.append(.{ .@"error" = error.InvalidNumberFormat, .lexer = self, .code = .{ .invalid_number_format = .{ .number = self.source_code[position..self.position] } } });
         return error.InvalidNumberFormat;
     }
 
@@ -489,7 +523,7 @@ fn scan_string(self: *Self) ![]const u8 {
 
     while (self.c != '"') : (self.advance()) {
         if (self.is_eof()) {
-            try self.errors.append(.{ .@"error" = error.UnmatchedDelimiter, .lexer = self, .trace = .{ .unmatched_delimiter = .{ .expected_delimiter = "\"" } } });
+            try self.errors.append(.{ .@"error" = error.UnmatchedDelimiter, .lexer = self, .code = .{ .unmatched_delimiter = .{ .expected_delimiter = "\"" } } });
             return error.UnmatchedDelimiter;
         }
 
@@ -507,7 +541,7 @@ fn scan_char(self: *Self) ![]const u8 {
     var i: usize = 0;
     while (self.c != '\'') : (self.advance()) {
         if (self.is_eof()) {
-            try self.errors.append(.{ .@"error" = error.UnmatchedDelimiter, .lexer = self, .trace = .{ .unmatched_delimiter = .{ .expected_delimiter = "'" } } });
+            try self.errors.append(.{ .@"error" = error.UnmatchedDelimiter, .lexer = self, .code = .{ .unmatched_delimiter = .{ .expected_delimiter = "'" } } });
             return error.UnmatchedDelimiter;
         }
 
@@ -519,7 +553,7 @@ fn scan_char(self: *Self) ![]const u8 {
     }
 
     if (i > 1) {
-        try self.errors.append(.{ .@"error" = error.InvalidCharSize, .lexer = self, .trace = .{ .invalid_char_size = .{ .char = self.source_code[position..self.position] } } });
+        try self.errors.append(.{ .@"error" = error.InvalidCharSize, .lexer = self, .code = .{ .invalid_char_size = .{ .char = self.source_code[position..self.position] } } });
         return error.InvalidCharSize;
     }
 
@@ -537,7 +571,7 @@ fn escape_sequence(self: *Self) !void {
             self.advance();
         },
         else => {
-            try self.errors.append(.{ .@"error" = error.InvalidEscapedSequence, .lexer = self, .trace = .{ .invalid_escaped_sequence = .{ .sequence = self.source_code[self.position..(self.next_position + 1)] } } });
+            try self.errors.append(.{ .@"error" = error.InvalidEscapedSequence, .lexer = self, .code = .{ .invalid_escaped_sequence = .{ .sequence = self.source_code[self.position..(self.next_position + 1)] } } });
             return error.InvalidEscapedSequence;
         },
     }
