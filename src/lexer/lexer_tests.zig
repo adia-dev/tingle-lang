@@ -98,7 +98,7 @@ test "Lexer - Unmatched delimiters" {
     try testing.expectError(error.UnmatchedDelimiter, lexer.scan());
     try testing.expectEqual(1, lexer.errors.items.len);
     try testing.expectError(error.UnmatchedDelimiter, lexer.errors.items[0].err());
-    try testing.expectEqualStrings("\"", lexer.errors.items[0].trace.unmatched_delimiter.expected_delimiter);
+    try testing.expectEqualStrings("\"", lexer.errors.items[0].code.unmatched_delimiter.expected_delimiter);
 }
 
 test "Lexer - Invalid number format" {
@@ -123,7 +123,7 @@ test "Lexer - Invalid escaped sequence on string" {
     try testing.expectError(error.InvalidEscapedSequence, lexer.scan());
     try testing.expectEqual(1, lexer.errors.items.len);
     try testing.expectError(error.InvalidEscapedSequence, lexer.errors.items[0].err());
-    try testing.expectEqualStrings("\\i", lexer.errors.items[0].trace.invalid_escaped_sequence.sequence);
+    try testing.expectEqualStrings("\\i", lexer.errors.items[0].code.invalid_escaped_sequence.sequence);
 }
 
 test "Lexer - Invalid escaped sequence on char" {
@@ -136,7 +136,7 @@ test "Lexer - Invalid escaped sequence on char" {
     try testing.expectError(error.InvalidEscapedSequence, lexer.scan());
     try testing.expectEqual(1, lexer.errors.items.len);
     try testing.expectError(error.InvalidEscapedSequence, lexer.errors.items[0].err());
-    try testing.expectEqualStrings("\\l", lexer.errors.items[0].trace.invalid_escaped_sequence.sequence);
+    try testing.expectEqualStrings("\\l", lexer.errors.items[0].code.invalid_escaped_sequence.sequence);
 }
 
 test "Lexer - Unexpected end of file" {
@@ -149,7 +149,7 @@ test "Lexer - Unexpected end of file" {
     try testing.expectError(error.UnmatchedDelimiter, lexer.scan());
     try testing.expectEqual(1, lexer.errors.items.len);
     try testing.expectError(error.UnmatchedDelimiter, lexer.errors.items[0].err());
-    try testing.expectEqualStrings("*/", lexer.errors.items[0].trace.unmatched_delimiter.expected_delimiter);
+    try testing.expectEqualStrings("*/", lexer.errors.items[0].code.unmatched_delimiter.expected_delimiter);
 }
 
 test "Lexer - Invalid character size" {

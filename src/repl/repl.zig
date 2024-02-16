@@ -52,7 +52,6 @@ pub fn read(self: *Self) !void {
 
 pub fn eval(self: *Self) !void {
     var lexer = try Lexer.init(self.allocator, self.input);
-
     defer lexer.deinit();
 
     var parser = Parser.init(self.allocator, &lexer) catch {

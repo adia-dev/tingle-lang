@@ -7,12 +7,67 @@ const Statements = ast.Statements;
 
 pub const std_options: std.Options = .{ .log_level = .debug, .logFn = ChromaLogger.log };
 
+// pub fn main() !void {
+//     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+//     defer arena.deinit();
+
+//     var repl = REPL.init(arena.allocator());
+//     defer repl.deinit();
+
+//     try repl.start();
+// }
+
+const Lexer = @import("lexer/lexer.zig");
+const Parser = @import("parser/parser.zig");
+
 pub fn main() !void {
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();
 
-    var repl = REPL.init(arena.allocator());
-    defer repl.deinit();
+    const source_code = [_][]const u8{
+        "\"Line 1\\nLine 2\\nLine 3;",
+        "\"",
+        "'",
+        \\"How about
+        \\multi line
+        \\string
+        ,
+        \\"this one is fine but..."
+        \\"How about
+        \\Very very very
+        \\Very very very
+        \\Very very very
+        \\Very very very
+        \\Very very very
+        \\Very very very
+        \\Very very very
+        \\Very very very
+        \\          very
+        \\          very
+        \\          very
+        \\long multi line
+        \\strings
+        ,
+        \\ "My github is adia-dev
+    };
 
-    try repl.start();
+    for (source_code) |code| {
+        var lexer = try Lexer.init(arena.allocator(), code);
+        defer lexer.deinit();
+
+        var parser = Parser.init(arena.allocator(), &lexer) catch {
+            continue;
+        };
+        defer parser.deinit();
+
+        var program = parser.parse() catch |err| {
+            std.debug.print("{}\n", .{err});
+            continue;
+        };
+        defer program.deinit();
+
+        for (program.statements.items) |stmt| {
+            std.debug.print("{}\n", .{stmt});
+        }
+    }
 }

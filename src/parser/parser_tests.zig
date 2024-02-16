@@ -395,7 +395,6 @@ test "Parser - Precedence" {
         \\ 5 > 4 == 3 < 4;
         \\ 5 < 4 != 3 > 4;
         \\ 3 + 4 * 5 == 3 * 1 + 4 * 5;
-        \\ 3 + 4 * 5 == 3 * 1 + 4 * 5;
     ;
 
     var lexer = try Lexer.init(ta, source_code);
@@ -422,7 +421,6 @@ test "Parser - Precedence" {
     try expected.append("((-5) * 5)");
     try expected.append("((5 > 4) == (3 < 4))");
     try expected.append("((5 < 4) != (3 > 4))");
-    try expected.append("((3 + (4 * 5)) == ((3 * 1) + (4 * 5)))");
     try expected.append("((3 + (4 * 5)) == ((3 * 1) + (4 * 5)))");
 
     var arr_buf = ArrayList(u8).init(ta);
