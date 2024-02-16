@@ -37,7 +37,9 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-    exe_unit_tests.linkSystemLibrary("readline");
+    if (target.result.os != .windows) {
+        exe_unit_tests.linkSystemLibrary("readline");
+    }
     exe_unit_tests.root_module.addImport("chroma", chroma_dep.module("chroma"));
     exe_unit_tests.root_module.addImport("chroma-logger", chroma_logger_dep.module("chroma-logger"));
 
