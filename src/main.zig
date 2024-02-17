@@ -49,6 +49,14 @@ pub fn main() !void {
         \\strings
         ,
         \\ "My github is adia-dev
+        ,
+        \\  hmmm       '111111111111' Hello
+        ,
+        \\ Multi line
+        \\ "Diagnostic
+        ,
+        "'abc",
+        "'abc'",
     };
 
     for (source_code) |code| {

@@ -66,8 +66,10 @@ pub const LexerError = struct {
         const formatter = ErrorFormatter{ .writer = writer };
         const line_nbr = self.lexer.line;
         const col_nbr = self.lexer.position - self.lexer.start_line_position;
+        const path = "src/main.zig";
+        const anchor_line_nbr = self.lexer.anchor_line;
 
-        try std.fmt.format(writer, chroma.format("{red}error[E{d:0>5}]{reset}: "), .{@intFromEnum(self.code)});
+        try std.fmt.format(writer, chroma.format("{red,bold}error[E{d:0>5}]{reset}: "), .{@intFromEnum(self.code)});
 
         switch (self.code) {
             .illegal_character => |payload| {
@@ -80,7 +82,45 @@ pub const LexerError = struct {
                 try std.fmt.format(writer, "Invalid number format found: `{s}` at {d}:{d}.\n", .{ payload.number, self.lexer.line, self.lexer.position + 1 });
             },
             .invalid_char_size => |payload| {
-                try std.fmt.format(writer, "Character is too long '{s}' at {d}:{d}.\n", .{ payload.char, self.lexer.line, self.lexer.position + 1 });
+                if (self.lexer.get_line(anchor_line_nbr)) |line| {
+                    var last_line_len: usize = 0;
+
+                    try formatter.text("Character is too long '{s}' at {d}:{d}.\n", .{ payload.char, line_nbr + 1, col_nbr });
+                    try formatter.trace(path, line_nbr + 1, col_nbr);
+                    try formatter.vertical_line();
+
+                    var char_start: usize = 0;
+                    while (char_start < line.len and line[char_start] != '\'') : (char_start += 1) {}
+
+                    var char_end: usize = char_start + 1;
+                    while (char_end < line.len and line[char_end] != '\'') : (char_end += 1) {}
+
+                    const char_len = char_end - char_start;
+
+                    try formatter.vertical_line_with_number(anchor_line_nbr + 1, false);
+                    try formatter.pad(char_start);
+                    try formatter.text(chroma.format("{241}{s}{red}{s}\n"), .{ line[char_start..(char_start + 2)], line[char_start + 2 .. char_end + 1] });
+
+                    try formatter.inline_vertical_line();
+                    for (0..char_end + 1) |i| {
+                        if (i > char_start + 1 and i < char_start + char_len) {
+                            try formatter.text(chroma.format("{red}^"), .{});
+                        } else {
+                            try formatter.pad(1);
+                        }
+                    }
+
+                    last_line_len = line.len - 1;
+
+                    try formatter.empty();
+                    try formatter.text(chroma.format("{green,bold}help{reset}: maybe you meant to write a `{magenta,italic,underline}string{reset}` at {blue,italic,underline}{s}:{d}:{d}\n"), .{ path, line_nbr + 1, col_nbr });
+                    try formatter.vertical_line();
+
+                    try formatter.vertical_line_with_number(anchor_line_nbr + 1, false);
+                    try formatter.pad(char_start);
+                    try formatter.text(chroma.format("{green}\"{s}\"{241}\n"), .{line[(char_start + 1)..(char_end)]});
+                    try formatter.vertical_line();
+                }
             },
             .overflowing_literal => |payload| {
                 _ = payload; // autofix
@@ -89,8 +129,6 @@ pub const LexerError = struct {
                 try std.fmt.format(writer, "Unexpected eof at {d}:{d}\n", .{ self.lexer.line, self.lexer.position + 1 });
             },
             .unmatched_delimiter => |payload| {
-                const path = "src/main.zig";
-                const anchor_line_nbr = self.lexer.anchor_line;
                 const distance = line_nbr - anchor_line_nbr;
                 // this is the threshold to reach before showing ellipsis
                 const max_lines_to_display = 3;
@@ -152,9 +190,7 @@ pub const LexerError = struct {
 
                 try formatter.inline_vertical_line();
                 try formatter.text(chroma.format("{green}│"), .{});
-                for (0..last_line_len + 1) |_| {
-                    try formatter.text(chroma.format(" "), .{});
-                }
+                try formatter.pad(last_line_len + 1);
                 try formatter.text(chroma.format("{green}┬\n"), .{});
                 try formatter.inline_vertical_line();
                 try formatter.text(chroma.format("{green}└"), .{});
@@ -164,7 +200,7 @@ pub const LexerError = struct {
                 try formatter.text(chroma.format("{green}┘"), .{});
                 try formatter.text("\n", .{});
 
-                try formatter.text(chroma.format("{green}help{reset}: try inserting a `{green}{s}{reset}` at {blue}{s}:{d}:{d}\n"), .{ payload.expected_delimiter, path, line_nbr + 1, col_nbr });
+                try formatter.text(chroma.format("{green,bold}help{reset}: try inserting a `{green}{s}{reset}` at {blue,italic,underline}{s}:{d}:{d}\n"), .{ payload.expected_delimiter, path, line_nbr + 1, col_nbr });
                 try formatter.empty();
             },
             .unsupported_character_encoding => |payload| {
@@ -212,6 +248,12 @@ const ErrorFormatter = struct {
 
     pub fn vertical_line_with_label(self: ErrorFormatter, label: []const u8, new_line: bool) !void {
         try std.fmt.format(self.writer, chroma.format("{blue}{s: <4}│ {s}"), .{ label, if (new_line) "\n" else "" });
+    }
+
+    pub fn pad(self: ErrorFormatter, count: usize) !void {
+        for (0..count) |_| {
+            try std.fmt.format(self.writer, " ", .{});
+        }
     }
 
     // // Formats the error header.
