@@ -7,13 +7,13 @@ const std = @import("std");
 const chroma = @import("chroma");
 const Self = @This();
 
-line: usize = 0,
-anchor_line: usize = 0,
+line: usize = 1,
+anchor_line: usize = 1,
 position: usize = 0,
 next_position: usize = 0,
 start_line_position: usize = 0,
 c: u8 = 0,
-current_token: ?*Token = null,
+current_token: *Token = undefined,
 
 allocator: std.mem.Allocator,
 source_code: []const u8,
@@ -76,13 +76,20 @@ fn init_keywords(self: *Self) !void {
 
 pub fn scan(self: *Self) !Token {
     self.skip_whitespace();
-    var token = Token{ .line = self.line, .col = self.position - self.start_line_position + 1, .type = .illegal };
+    var token = Token{
+        .line = self.line,
+        .col = self.position - self.start_line_position + 1,
+        .type = .illegal,
+    };
+
+    self.anchor_line = self.line;
 
     self.current_token = &token;
 
     switch (self.c) {
         0 => {
             token.type = .eof;
+            token.lexeme = "(eof)";
             return token;
         },
         'a'...'z', 'A'...'Z' => {
@@ -393,8 +400,6 @@ pub fn scan(self: *Self) !Token {
 
     self.advance();
 
-    self.current_token = null;
-
     return token;
 }
 
@@ -403,12 +408,6 @@ fn advance(self: *Self) void {
         self.c = 0;
     } else {
         self.c = self.source_code[self.next_position];
-    }
-    // NOTE: This is to handle line number even when advancing in tokens
-    // HACK: find a proper way of doing this
-    if (self.c == '\n') {
-        // self.anchor_line = self.line;
-        self.line += 1;
     }
     self.position = self.next_position;
     self.next_position += 1;
@@ -525,10 +524,15 @@ fn scan_string(self: *Self) ![]const u8 {
 
     while (self.c != '"') : (self.advance()) {
         if (self.is_eof()) {
+            self.current_token.type = .eof;
+            self.current_token.lexeme = "(eof)";
             try self.err(.{ .@"error" = error.UnmatchedDelimiter, .lexer = self, .code = .{ .unmatched_delimiter = .{ .expected_delimiter = "\"" } } });
             return error.UnmatchedDelimiter;
         }
         if (self.c == '\n') {
+            // NOTE: This is to handle line number even when advancing in tokens
+            // HACK: find a proper way of doing this
+            self.line += 1;
             self.start_line_position = self.position + 1;
         }
 
@@ -547,6 +551,8 @@ fn scan_char(self: *Self) ![]const u8 {
     while (self.c != '\'') : (self.advance()) {
         if (self.is_eof()) {
             try self.err(.{ .@"error" = error.UnmatchedDelimiter, .lexer = self, .code = .{ .unmatched_delimiter = .{ .expected_delimiter = "'" } } });
+            self.current_token.type = .eof;
+            self.current_token.lexeme = "(eof)";
             return error.UnmatchedDelimiter;
         }
 
@@ -590,7 +596,6 @@ fn skip_whitespace(self: *Self) void {
     while (true) {
         switch (self.c) {
             '\n' => {
-                self.anchor_line = self.line;
                 self.line += 1;
                 self.start_line_position = self.position;
             },
@@ -605,10 +610,41 @@ fn err(self: *Self, e: LexerError) !void {
     try self.errors.append(e);
 }
 
+pub fn get_current_line(self: Self) ?[]const u8 {
+    if ((self.line - 1) < self.source_code_lines.items.len) {
+        return self.source_code_lines.items[self.line - 1];
+    }
+
+    return null;
+}
+
+pub fn get_anchor_line(self: Self) ?[]const u8 {
+    if ((self.anchor_line - 1) < self.source_code_lines.items.len) {
+        return self.source_code_lines.items[self.anchor_line - 1];
+    }
+
+    return null;
+}
+
 pub fn get_line(self: Self, at: usize) ?[]const u8 {
     if (at >= self.source_code_lines.items.len) {
         return null;
     }
 
     return self.source_code_lines.items[at];
+}
+
+pub fn get_lines(self: Self, from: usize, maybe_to: ?usize) ?[][]const u8 {
+    if (from >= self.source_code_lines.items.len) {
+        return null;
+    }
+
+    if (maybe_to) |to| {
+        var i = from;
+        while (i < to and i < self.source_code_lines.items.len) : (i += 1) {}
+
+        return self.source_code_lines.items[from..i];
+    } else {
+        return self.source_code_lines.items[from..];
+    }
 }

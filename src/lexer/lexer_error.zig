@@ -15,6 +15,53 @@ const chroma = @import("chroma");
 // ┬ (U+252C): Tee pointing down
 // ┼ (U+253C): Cross
 
+pub const PathLines = enum {
+    /// ─ (U+2500): Horizontal
+    horizontal,
+    /// │ (U+2502): Vertical
+    vertical,
+    /// ┌ (U+250C): Corner top left
+    corner_top_left,
+    /// ┐ (U+2510): Corner top right
+    corner_top_right,
+    /// └ (U+2514): Corner bottom left
+    corner_bottom_left,
+    /// ┘ (U+2518): Corner bottom right
+    corner_bottom_right,
+    /// ├ (U+251C): Tee pointing right
+    tee_right,
+    /// ┤ (U+2524): Tee pointing left
+    tee_left,
+    /// ┴ (U+2534): Tee pointing up
+    tee_up,
+    /// ┬ (U+252C): Tee pointing down
+    tee_down,
+    /// ┼ (U+253C): Cross
+    cross,
+
+    pub fn to_string(self: PathLines) []const u8 {
+        return switch (self) {
+            .horizontal => "─",
+            .vertical => "│",
+            .corner_top_left => "┌",
+            .corner_top_right => "┐",
+            .corner_bottom_left => "└",
+            .corner_bottom_right => "┘",
+            .tee_right => "├",
+            .tee_left => "┤",
+            .tee_up => "┴",
+            .tee_down => "┬",
+            .cross => "┼",
+        };
+    }
+
+    pub fn format(self: PathLines, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+        _ = options; // autofix
+        _ = fmt; // autofix
+        try std.fmt.format(writer, "{s}", .{self.to_string()});
+    }
+};
+
 pub const LexerErrorCodeTag = enum(u16) {
     illegal_character = 1_000,
     invalid_escaped_sequence,
@@ -63,11 +110,15 @@ pub const LexerError = struct {
         _ = options;
         _ = fmt;
 
+        const allocator = std.heap.page_allocator;
+
         const formatter = ErrorFormatter{ .writer = writer };
         const line_nbr = self.lexer.line;
         const col_nbr = self.lexer.position - self.lexer.start_line_position;
         const path = "src/main.zig";
         const anchor_line_nbr = self.lexer.anchor_line;
+        const lexeme = try std.fmt.allocPrint(allocator, "{s}", .{self.lexer.current_token.lexeme});
+        defer allocator.free(lexeme);
 
         try std.fmt.format(writer, chroma.format("{red,bold}error[E{d:0>5}]{reset}: "), .{@intFromEnum(self.code)});
 
@@ -85,7 +136,7 @@ pub const LexerError = struct {
                 if (self.lexer.get_line(anchor_line_nbr)) |line| {
                     var last_line_len: usize = 0;
 
-                    try formatter.text("Character is too long '{s}' at {d}:{d}.\n", .{ payload.char, line_nbr + 1, col_nbr });
+                    try formatter.write("Character is too long '{s}' at {d}:{d}.\n", .{ payload.char, line_nbr + 1, col_nbr });
                     try formatter.trace(path, line_nbr + 1, col_nbr);
                     try formatter.vertical_line();
 
@@ -99,12 +150,12 @@ pub const LexerError = struct {
 
                     try formatter.vertical_line_with_number(anchor_line_nbr + 1, false);
                     try formatter.pad(char_start);
-                    try formatter.text(chroma.format("{241}{s}{red}{s}\n"), .{ line[char_start..(char_start + 2)], line[char_start + 2 .. char_end + 1] });
+                    try formatter.write(chroma.format("{241}{s}{red}{s}\n"), .{ line[char_start..(char_start + 2)], line[char_start + 2 .. char_end + 1] });
 
                     try formatter.inline_vertical_line();
                     for (0..char_end + 1) |i| {
                         if (i > char_start + 1 and i < char_start + char_len) {
-                            try formatter.text(chroma.format("{red}^"), .{});
+                            try formatter.write(chroma.format("{red}^"), .{});
                         } else {
                             try formatter.pad(1);
                         }
@@ -112,13 +163,13 @@ pub const LexerError = struct {
 
                     last_line_len = line.len - 1;
 
-                    try formatter.empty();
-                    try formatter.text(chroma.format("{green,bold}help{reset}: maybe you meant to write a `{magenta,italic,underline}string{reset}` at {blue,italic,underline}{s}:{d}:{d}\n"), .{ path, line_nbr + 1, col_nbr });
+                    try formatter.ln();
+                    try formatter.write(chroma.format("{green,bold}help{reset}: maybe you meant to write a `{magenta,italic,underline}string{reset}` at {blue,italic,underline}{s}:{d}:{d}\n"), .{ path, line_nbr + 1, col_nbr });
                     try formatter.vertical_line();
 
                     try formatter.vertical_line_with_number(anchor_line_nbr + 1, false);
                     try formatter.pad(char_start);
-                    try formatter.text(chroma.format("{green}\"{s}\"{241}\n"), .{line[(char_start + 1)..(char_end)]});
+                    try formatter.write(chroma.format("{green}\"{s}\"{241}\n"), .{line[(char_start + 1)..(char_end)]});
                     try formatter.vertical_line();
                 }
             },
@@ -129,92 +180,49 @@ pub const LexerError = struct {
                 try std.fmt.format(writer, "Unexpected eof at {d}:{d}\n", .{ self.lexer.line, self.lexer.position + 1 });
             },
             .unmatched_delimiter => |payload| {
-                const distance = line_nbr - anchor_line_nbr;
-                // this is the threshold to reach before showing ellipsis
-                const max_lines_to_display = 3;
-                var last_line_len: usize = 0;
+                var diagnostics = std.AutoHashMap(usize, []const ErrorFormatter.LineDiagnostic).init(allocator);
+                defer diagnostics.deinit();
 
-                try formatter.text(chroma.format("Unmatched delimiter, expected to find `{241}{s}{reset}`.\n"), .{payload.expected_delimiter});
-                try formatter.trace(path, line_nbr + 1, col_nbr);
+                try formatter.write(chroma.format("Unmatched delimiter, expected: `{241}{s}{reset}`, got: `{241}{s}{reset}`\n"), .{ payload.expected_delimiter, lexeme });
+                try formatter.trace(path, line_nbr, col_nbr);
                 try formatter.vertical_line();
-                try formatter.inline_vertical_line();
 
-                if (self.lexer.get_line(anchor_line_nbr)) |line| {
-                    if (distance <= 1) {
-                        try formatter.text(chroma.format("{green}┌{241}{s}{green}{s}\n"), .{ line, payload.expected_delimiter });
-                        last_line_len = line.len - 1;
-                    } else {
-                        try formatter.text(chroma.format("{green}┌{241}{s}\n"), .{line});
-                    }
+                var buf: [1024]u8 = undefined;
+                var message: []u8 = undefined;
+                message = try std.fmt.bufPrint(buf[0..], chroma.format("{red}Unclosed delimiter"), .{});
+
+                try diagnostics.put(
+                    line_nbr,
+                    &.{
+                        .{
+                            .line = line_nbr,
+                            .col = col_nbr,
+                            .message = message,
+                            .underline = chroma.format("{red}^"),
+                        },
+                    },
+                );
+
+                if (self.lexer.get_lines(anchor_line_nbr - 1, null)) |lines| {
+                    try formatter.code_block(anchor_line_nbr, lines, &diagnostics);
                 }
 
-                const from = anchor_line_nbr + 1;
-                const to = @min(anchor_line_nbr + max_lines_to_display, line_nbr + 1);
-                for (from..to) |i| {
-                    if (self.lexer.get_line(i)) |line| {
-                        try formatter.vertical_line_with_number(anchor_line_nbr + i + 1, false);
-                        try formatter.text(chroma.format("{green}│"), .{});
-                        // + 1 because we start counting lines at 0                       ^^^^^
-
-                        if (distance < max_lines_to_display and i == to - 1) {
-                            try formatter.text(chroma.format("{241} {s}{green}{s}\n"), .{ line, payload.expected_delimiter });
-                        } else {
-                            try formatter.text(chroma.format("{241} {s}\n"), .{line});
-                        }
-                        if (line.len > 0) {
-                            last_line_len = line.len;
-                        }
-                    }
-                }
-
-                if (distance > max_lines_to_display) {
-                    try formatter.vertical_line_with_label("...", false);
-                    try formatter.text(chroma.format("{green}│\n"), .{});
-
-                    for ((line_nbr - max_lines_to_display)..line_nbr) |i| {
-                        if (self.lexer.get_line(i)) |line| {
-                            // + 1 because we start counting lines at 0
-                            try formatter.vertical_line_with_number(anchor_line_nbr + i + 1, false);
-                            try formatter.text(chroma.format("{green}│"), .{});
-                            if (i == line_nbr - 1) {
-                                try formatter.text(chroma.format("{241} {s}{green}{s}\n"), .{ line, payload.expected_delimiter });
-                            } else {
-                                try formatter.text(chroma.format("{241} {s}\n"), .{line});
-                            }
-                            if (line.len > 0) {
-                                last_line_len = line.len;
-                            }
-                        }
-                    }
-                }
-
-                try formatter.inline_vertical_line();
-                try formatter.text(chroma.format("{green}│"), .{});
-                try formatter.pad(last_line_len + 1);
-                try formatter.text(chroma.format("{green}┬\n"), .{});
-                try formatter.inline_vertical_line();
-                try formatter.text(chroma.format("{green}└"), .{});
-                for (0..last_line_len + 1) |_| {
-                    try formatter.text(chroma.format("{green}─"), .{});
-                }
-                try formatter.text(chroma.format("{green}┘"), .{});
-                try formatter.text("\n", .{});
-
-                try formatter.text(chroma.format("{green,bold}help{reset}: try inserting a `{green}{s}{reset}` at {blue,italic,underline}{s}:{d}:{d}\n"), .{ payload.expected_delimiter, path, line_nbr + 1, col_nbr });
-                try formatter.empty();
+                try formatter.vertical_line();
             },
             .unsupported_character_encoding => |payload| {
                 _ = payload; // autofix
             },
         }
 
-        try std.fmt.format(writer, chroma.format("\n{red}tingle-lang{reset}: Program could not compile due to previous errors\n"), .{});
+        // try std.fmt.format(writer, chroma.format("\n{red}tingle-lang{reset}: Program could not compile due to previous errors\n"), .{});
     }
 };
 
 const ErrorFormatter = struct {
     writer: std.io.AnyWriter,
     padding: usize = 4,
+    max_lines_to_display: usize = 10,
+    skipped_lines_to_display: usize = 3,
 
     pub fn init(writer: std.io.AnyWriter) ErrorFormatter {
         return .{
@@ -222,12 +230,45 @@ const ErrorFormatter = struct {
         };
     }
 
-    pub fn empty(self: ErrorFormatter) !void {
+    pub const LineDiagnostic = struct {
+        line: usize = 0,
+        col: usize = 0,
+        anchor: ?[]const u8 = null,
+        message: ?[]const u8 = null,
+        underline: ?[]const u8 = null,
+
+        pub fn write(self: LineDiagnostic, formatter: ErrorFormatter) !void {
+            try formatter.inline_vertical_line();
+            try formatter.pad(self.col);
+            if (self.underline) |underline| {
+                try formatter.write_many("{s}", 1, .{underline});
+            }
+            if (self.message) |message| {
+                try formatter.write(" {s}", .{message});
+            }
+            try formatter.ln();
+        }
+    };
+
+    pub const CodeBlockOptions = struct {
+        borders: bool = false,
+        border_style: enum { fancy, default } = .fancy,
+        from: ?struct { line: usize = 0, col: usize = 0 } = .{ .line = 0, .col = 0 },
+        to: ?struct { line: usize = 0, col: usize = 0 },
+    };
+
+    pub fn ln(self: ErrorFormatter) !void {
         try std.fmt.format(self.writer, "\n", .{});
     }
 
-    pub fn text(self: ErrorFormatter, comptime fmt: []const u8, args: anytype) !void {
+    pub fn write(self: ErrorFormatter, comptime fmt: []const u8, args: anytype) !void {
         try std.fmt.format(self.writer, fmt, args);
+    }
+
+    pub fn write_many(self: ErrorFormatter, comptime fmt: []const u8, count: usize, args: anytype) !void {
+        for (0..count) |_| {
+            try std.fmt.format(self.writer, fmt, args);
+        }
     }
 
     pub fn trace(self: ErrorFormatter, path: []const u8, line: usize, column: usize) !void {
@@ -235,11 +276,11 @@ const ErrorFormatter = struct {
     }
 
     pub fn vertical_line(self: ErrorFormatter) !void {
-        try std.fmt.format(self.writer, chroma.format("{blue}{s: >5} \n"), .{"│"});
+        try std.fmt.format(self.writer, chroma.format("{blue}{s: >5} \n"), .{PathLines.vertical.to_string()});
     }
 
     pub fn inline_vertical_line(self: ErrorFormatter) !void {
-        try std.fmt.format(self.writer, chroma.format("{blue}{s: >5} "), .{"│"});
+        try std.fmt.format(self.writer, chroma.format("{blue}{s: >5} "), .{PathLines.vertical.to_string()});
     }
 
     pub fn vertical_line_with_number(self: ErrorFormatter, number: anytype, new_line: bool) !void {
@@ -253,6 +294,44 @@ const ErrorFormatter = struct {
     pub fn pad(self: ErrorFormatter, count: usize) !void {
         for (0..count) |_| {
             try std.fmt.format(self.writer, " ", .{});
+        }
+    }
+
+    pub fn code_block(self: ErrorFormatter, start_line: usize, lines: [][]const u8, diagnostics: *std.AutoHashMap(usize, []const LineDiagnostic)) !void {
+        const should_skip_content = lines.len >= self.max_lines_to_display;
+        for (lines, 0..) |line, i| {
+            if (should_skip_content and i >= self.skipped_lines_to_display) {
+                break;
+            }
+            try self.vertical_line_with_number(start_line + i, false);
+            try self.write(chroma.format("{241}{s}\n"), .{line});
+            if (diagnostics.get(start_line + i)) |line_diagnostics| {
+                for (line_diagnostics) |*diagnostic| {
+                    try diagnostic.write(self);
+                }
+                _ = diagnostics.remove(start_line + i);
+            }
+        }
+
+        if (should_skip_content) {
+            try self.write(chroma.format("{blue}... │\n"), .{});
+            for (lines[lines.len - self.skipped_lines_to_display ..], 0..) |line, i| {
+                try self.vertical_line_with_number(start_line + lines.len - self.skipped_lines_to_display + i, false);
+                try self.write(chroma.format("{241}{s}\n"), .{line});
+                if (diagnostics.get(start_line + lines.len - self.skipped_lines_to_display + i)) |line_diagnostics| {
+                    for (line_diagnostics) |*diagnostic| {
+                        try diagnostic.write(self);
+                    }
+                    _ = diagnostics.remove(start_line + lines.len - self.skipped_lines_to_display + i);
+                }
+            }
+        }
+
+        var it = diagnostics.valueIterator();
+        while (it.next()) |line_diagnostics| {
+            for (line_diagnostics.*) |diagnostic| {
+                try diagnostic.write(self);
+            }
         }
     }
 

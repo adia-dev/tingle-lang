@@ -19,6 +19,7 @@ pub const std_options: std.Options = .{ .log_level = .debug, .logFn = ChromaLogg
 
 const Lexer = @import("lexer/lexer.zig");
 const Parser = @import("parser/parser.zig");
+const chroma = @import("chroma");
 
 pub fn main() !void {
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
@@ -31,8 +32,26 @@ pub fn main() !void {
         \\"How about
         \\multi line
         \\string
+        \\ string
+        \\ string
+        \\ string
+        \\ string
+        \\ string
+        \\ string
         ,
         \\"this one is fine but..."
+        ,
+        \\ ;
+        \\ ;
+        \\ ;
+        \\ ;
+        \\ ;
+        \\ ;
+        \\ ;
+        \\ ;
+        \\ ;
+        \\ ;
+        \\ ;
         \\"How about
         \\Very very very
         \\Very very very
@@ -47,16 +66,21 @@ pub fn main() !void {
         \\          very
         \\long multi line
         \\strings
-        ,
-        \\ "My github is adia-dev
-        ,
-        \\  hmmm       '111111111111' Hello
-        ,
-        \\ Multi line
-        \\ "Diagnostic
-        ,
-        "'abc",
-        "'abc'",
+        // ,
+        // \\ "My github is adia-dev
+        // ,
+        // \\  hmmm       '111111111111' Hello
+        // ,
+        // \\ Multi line
+        // \\ "Diagnostic
+        // ,
+        // "'abc",
+        // "'abc'",
+        // \\ 'a
+        // \\  b
+        // \\  c
+        // \\  d
+        // \\  e
     };
 
     for (source_code) |code| {
@@ -74,8 +98,8 @@ pub fn main() !void {
         };
         defer program.deinit();
 
-        for (program.statements.items) |stmt| {
-            std.debug.print("{}\n", .{stmt});
-        }
+        //         for (program.statements.items) |stmt| {
+        //             std.debug.print(chroma.format("{241}{}\n"), .{stmt});
+        //         }
     }
 }
