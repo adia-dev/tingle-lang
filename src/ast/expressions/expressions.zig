@@ -38,7 +38,7 @@ pub const Expression = union(ExpressionTag) {
     }
 
     pub fn downcast(self: Expression, comptime T: type) ?*T {
-        inline for (@typeInfo(Expression).Union.fields) |field| {
+        inline for (@typeInfo(Expression).@"union".fields) |field| {
             if (field.type == ?*T) {
                 return @field(self, field.name);
             }

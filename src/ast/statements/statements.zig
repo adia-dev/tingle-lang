@@ -29,7 +29,7 @@ pub const Statement = union(StatementTag) {
     }
 
     pub fn downcast(self: Statement, comptime T: type) ?*T {
-        inline for (@typeInfo(Statement).Union.fields) |field| {
+        inline for (@typeInfo(Statement).@"union".fields) |field| {
             if (field.type == ?*T) {
                 return @field(self, field.name);
             }

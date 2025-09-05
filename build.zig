@@ -9,7 +9,7 @@ pub fn build(b: *std.Build) void {
 
     const exe = b.addExecutable(.{
         .name = "tingle-lang",
-        .root_source_file = .{ .src_path = .{ .sub_path = "src/main.zig", .owner = b } },
+        .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
     });
@@ -31,8 +31,9 @@ pub fn build(b: *std.Build) void {
     run_step.dependOn(&run_cmd.step);
 
     const exe_unit_tests = b.addTest(.{
-        .root_source_file = .{ .src_path = .{ .sub_path = "src/tests.zig", .owner = b } },
-        .test_runner = .{ .src_path = .{ .sub_path = "src/test_runner.zig", .owner = b } },
+        .root_source_file = b.path("src/tests.zig"),
+        // .mode defaults are fine; set to .simple if your runner expects it:
+        .test_runner = .{ .path = b.path("src/test_runner.zig"), .mode = .simple },
         .target = target,
         .optimize = optimize,
     });

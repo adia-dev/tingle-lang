@@ -69,7 +69,7 @@ fn init_keywords(self: *Self) !void {
     self.keywords = std.StringHashMap(Token.Keyword).init(self.allocator);
 
     //NOTE: zig metaprogramming is so gooooood
-    inline for (@typeInfo(Token.Keyword).Enum.fields) |f| {
+    inline for (@typeInfo(Token.Keyword).@"enum".fields) |f| {
         try self.keywords.put(f.name, @field(Token.Keyword, f.name));
     }
 }
